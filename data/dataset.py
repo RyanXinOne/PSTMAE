@@ -23,12 +23,13 @@ class SynthDataset(Dataset):
 
 
 class ShallowWaterDataset(Dataset):
-    def __init__(self, path):
+    def __init__(self, path, flatten=False):
         super().__init__()
         self.path = path
         self.files = os.listdir(self.path)
-        
-        # compute min and max values of h, u, v
+        self.flatten = flatten
+
+        # compute min and max values of h, u, v for normalisation
         self.min_vals = np.array([np.inf, np.inf, np.inf]).reshape(1, 3, 1, 1)
         self.max_vals = np.array([-np.inf, -np.inf, -np.inf]).reshape(1, 3, 1, 1)
         for file in self.files:
@@ -45,7 +46,10 @@ class ShallowWaterDataset(Dataset):
         data = np.load(file_path)
         data = self.normalise(data)
 
-        data = torch.from_numpy(data).float().flatten(start_dim=1, end_dim=-1)
+        data = torch.from_numpy(data).float()
+        if self.flatten:
+            data = data.flatten(start_dim=1, end_dim=-1)
+
         return data
 
     def normalise(self, data):
@@ -57,6 +61,6 @@ class ShallowWaterDataset(Dataset):
 
 if __name__ == '__main__':
     dataset = ShallowWaterDataset(path='shallow_water/train')  # SynthDataset(1000)
-    print(len(dataset), dataset[0].shape)  # size, (seq_len, n_features)
+    print(len(dataset), dataset[0].shape)  # size, (seq_len, n_features...)
     print(dataset.min_vals.squeeze())
     print(dataset.max_vals.squeeze())

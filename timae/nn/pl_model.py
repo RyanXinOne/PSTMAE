@@ -1,6 +1,6 @@
 from torch import optim
 import lightning.pytorch as pl
-from nn.model import TimeSeriesMaskedAutoencoder
+from timae.nn.model import TimeSeriesMaskedAutoencoder
 
 
 class LitTiMAE(pl.LightningModule):
