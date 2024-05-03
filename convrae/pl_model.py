@@ -2,7 +2,7 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
-from convrae.nn.model import ConvRecurrentAutoEncoder
+from convrae.model import ConvRecurrentAutoEncoder
 
 
 class LitConvRAE(pl.LightningModule):

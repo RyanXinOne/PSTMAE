@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 import lightning.pytorch as pl
 from torchinfo import summary
-from timae.nn.pl_model import LitTiMAE
+from timae.pl_model import LitTiMAE
 from data.dataset import ShallowWaterDataset
 
 

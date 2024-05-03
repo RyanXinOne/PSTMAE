@@ -1,7 +1,7 @@
 import math
 import torch
 from torch import nn
-from timae.nn.positional import PositionalEncoding
+from timae.positional import PositionalEncoding
 
 
 class TimeSeriesMaskedAutoencoder(nn.Module):

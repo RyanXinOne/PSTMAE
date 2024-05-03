@@ -1,6 +1,6 @@
 import lightning.pytorch as pl
 from torchinfo import summary
-from convrae.nn.pl_model import LitConvRAE
+from convrae.pl_model import LitConvRAE
 from data.dataset import ShallowWaterDataset
 
 
