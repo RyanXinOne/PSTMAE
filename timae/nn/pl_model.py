@@ -17,11 +17,11 @@ class LitTiMAE(pl.LightningModule):
         loss_removed, loss_seen, forecast_loss, backcast_loss = losses
         loss = loss_removed + 0.75 * forecast_loss + 0.5 * loss_seen + 0.2 * backcast_loss
 
-        self.log("train/loss_removed", loss_removed, sync_dist=True)
-        self.log("train/loss_seen", loss_seen, sync_dist=True)
-        self.log("train/forecast_loss", forecast_loss, sync_dist=True)
-        self.log("train/backcast_loss", backcast_loss, sync_dist=True)
-        self.log("train/loss", loss, sync_dist=True)
+        self.log("train/loss_removed", loss_removed)
+        self.log("train/loss_seen", loss_seen)
+        self.log("train/forecast_loss", forecast_loss)
+        self.log("train/backcast_loss", backcast_loss)
+        self.log("train/loss", loss)
 
         return loss
 
@@ -31,11 +31,11 @@ class LitTiMAE(pl.LightningModule):
         loss_removed, loss_seen, forecast_loss, backcast_loss = losses
         loss = loss_removed + 0.75 * forecast_loss + 0.5 * loss_seen + 0.2 * backcast_loss
 
-        self.log("eval/loss_removed", loss_removed, sync_dist=True)
-        self.log("eval/loss_seen", loss_seen, sync_dist=True)
-        self.log("eval/forecast_loss", forecast_loss, sync_dist=True)
-        self.log("eval/backcast_loss", backcast_loss, sync_dist=True)
-        self.log("eval/loss", loss, sync_dist=True)
+        self.log("eval/loss_removed", loss_removed)
+        self.log("eval/loss_seen", loss_seen)
+        self.log("eval/forecast_loss", forecast_loss)
+        self.log("eval/backcast_loss", backcast_loss)
+        self.log("eval/loss", loss)
 
         return loss
 
