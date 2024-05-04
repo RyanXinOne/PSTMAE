@@ -190,6 +190,9 @@ class ConvLSTMForecaster(nn.Module):
         self.conv = nn.Conv2d(hidden_dim, input_dim, kernel_size=1)
 
     def forward(self, x):
+        '''
+        input shape: (b, l, c, h, w)
+        '''
         x, _ = self.convlstm(x)
 
         b, l = x.size(0), x.size(1)

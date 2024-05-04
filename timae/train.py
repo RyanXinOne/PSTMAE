@@ -6,20 +6,20 @@ from data.dataset import ShallowWaterDataset
 
 
 def main():
-    model = LitTiMAE(12288)
+    model = LitTiMAE(input_dim=3*64*64)
     summary(model.model)
 
     train_dataset = ShallowWaterDataset(path='shallow_water/train', flatten=True)
-    eval_dataset = ShallowWaterDataset(path='shallow_water/eval', flatten=True)
+    val_dataset = ShallowWaterDataset(path='shallow_water/val', flatten=True)
 
     train_loader = DataLoader(train_dataset, 32, num_workers=0, shuffle=True)
-    eval_loader = DataLoader(eval_dataset, 32, num_workers=0)
+    val_loader = DataLoader(val_dataset, 32, num_workers=0)
 
     trainer = pl.Trainer(
         max_epochs=10,
         logger=False
     )
-    trainer.fit(model, train_loader, eval_loader)
+    trainer.fit(model, train_loader, val_loader)
 
 
 if __name__ == "__main__":

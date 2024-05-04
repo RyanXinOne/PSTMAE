@@ -4,17 +4,14 @@ from timae.model import TimeSeriesMaskedAutoencoder
 
 
 class LitTiMAE(pl.LightningModule):
-    def __init__(self, in_chans, lr=1e-3):
+    def __init__(self, input_dim):
         super().__init__()
-        self.model = TimeSeriesMaskedAutoencoder(in_chans)
-
-        self.lr = lr
-        self.save_hyperparameters()
+        self.model = TimeSeriesMaskedAutoencoder(input_dim)
+        self.lr = 1e-3
 
     def training_step(self, batch, batch_idx):
-        losses, pred = self.model(batch)
+        (loss_removed, loss_seen, forecast_loss, backcast_loss), _ = self.model(batch)
 
-        loss_removed, loss_seen, forecast_loss, backcast_loss = losses
         loss = loss_removed + 0.75 * forecast_loss + 0.5 * loss_seen + 0.2 * backcast_loss
 
         self.log("train/loss_removed", loss_removed)
@@ -26,16 +23,15 @@ class LitTiMAE(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        losses, pred = self.model(batch)
+        (loss_removed, loss_seen, forecast_loss, backcast_loss), _ = self.model(batch)
 
-        loss_removed, loss_seen, forecast_loss, backcast_loss = losses
         loss = loss_removed + 0.75 * forecast_loss + 0.5 * loss_seen + 0.2 * backcast_loss
 
-        self.log("eval/loss_removed", loss_removed)
-        self.log("eval/loss_seen", loss_seen)
-        self.log("eval/forecast_loss", forecast_loss)
-        self.log("eval/backcast_loss", backcast_loss)
-        self.log("eval/loss", loss)
+        self.log("val/loss_removed", loss_removed)
+        self.log("val/loss_seen", loss_seen)
+        self.log("val/forecast_loss", forecast_loss)
+        self.log("val/backcast_loss", backcast_loss)
+        self.log("val/loss", loss)
 
         return loss
 

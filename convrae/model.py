@@ -4,32 +4,32 @@ from torch import nn
 
 class ConvAutoEncoder(nn.Module):
     '''
-    A convolutional autoencoder that compresses the input image into the latent space.
+    A Convolutional AutoEncoder that compresses input image into latent space.
 
-    Image size: 3 * 64 * 64
+    Image size: c * 64 * 64
     '''
 
-    def __init__(self):
+    def __init__(self, input_dim, latent_dim):
         super(ConvAutoEncoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, 3, stride=2, padding=1),
+            nn.Conv2d(input_dim, 16, 3, stride=2, padding=1),
             nn.ReLU(),
             nn.Conv2d(16, 32, 3, stride=2, padding=1),
             nn.ReLU(),
             nn.Conv2d(32, 64, 3, stride=2, padding=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(64 * 8 * 8, 128)
+            nn.Linear(64 * 8 * 8, latent_dim)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(128, 64 * 8 * 8),
+            nn.Linear(latent_dim, 64 * 8 * 8),
             nn.Unflatten(1, (64, 8, 8)),
             nn.ReLU(),
             nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
             nn.ReLU(),
             nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
             nn.ReLU(),
-            nn.ConvTranspose2d(16, 3, 3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(16, input_dim, 3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
         )
 
@@ -46,19 +46,19 @@ class ConvAutoEncoder(nn.Module):
         return self.decoder(x)
 
 
-class ConvRecurrentAutoEncoder(nn.Module):
+class ConvRAE(nn.Module):
     '''
-    A Convolutional Recurrent Autoencoder for time series forecasting.
+    A Convolutional Recurrent AutoEncoder for time series forecasting.
 
     Dimensionality reduction via convolutional autoencoder + 
     Learning feature dynamics via LSTM
     '''
 
-    def __init__(self):
-        super(ConvRecurrentAutoEncoder, self).__init__()
-        self.autoencoder = ConvAutoEncoder()
-        self.lstm = nn.LSTM(128, 128)
-        self.proj = nn.Linear(128, 128)
+    def __init__(self, input_dim, latent_dim, hidden_dim):
+        super(ConvRAE, self).__init__()
+        self.autoencoder = ConvAutoEncoder(input_dim, latent_dim)
+        self.lstm = nn.LSTM(latent_dim, hidden_dim, batch_first=True)
+        self.proj = nn.Linear(hidden_dim, latent_dim)
 
         self.initialise_weights()
 
@@ -73,21 +73,30 @@ class ConvRecurrentAutoEncoder(nn.Module):
 
     def forward(self, x):
         '''
-        input shape: (seq_len, 3, 64, 64)
+        input shape: (b, l, c, 64, 64)
         '''
+        b, l = x.size(0), x.size(1)
+
+        x = x.view(-1, x.size(-3), x.size(-2), x.size(-1))
         x = self.autoencoder.encode(x)
+        x = x.view(b, l, x.size(-1))
+
         h1 = x.clone()
         x, _ = self.lstm(x)
         x = self.proj(x)
         h2 = x.clone()
+
+        x = x.view(-1, x.size(-1))
         x = self.autoencoder.decode(x)
+        x = x.view(b, l, x.size(-3), x.size(-2), x.size(-1))
+
         return x, h1, h2
 
 
 if __name__ == '__main__':
-    model = ConvRecurrentAutoEncoder()
+    model = ConvRAE(3, 128, 128)
     print(model)
 
-    x = torch.randn(10, 3, 64, 64)
+    x = torch.randn(5, 10, 3, 64, 64)
     x, h1, h2 = model(x)
     print(x.shape, h1.shape, h2.shape)

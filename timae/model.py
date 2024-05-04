@@ -9,7 +9,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
     def __init__(
         self,
-        in_chans,
+        input_dim,
         embed_dim=64,
         num_heads=4,
         depth=2,
@@ -29,7 +29,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         self.forecast_ratio = forecast_ratio
         self.forecast_steps = forecast_steps
 
-        self.embedder = nn.Linear(in_chans, embed_dim, bias=False)
+        self.embedder = nn.Linear(input_dim, embed_dim, bias=False)
         self.pos_encoder_e = PositionalEncoding(embed_dim)
         self.pos_encoder_d = PositionalEncoding(decoder_embed_dim)
 
@@ -59,7 +59,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
             ) for _ in range(decoder_depth)
         ])
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, in_chans, bias=True)
+        self.decoder_pred = nn.Linear(decoder_embed_dim, input_dim, bias=True)
 
         self.initialize_weights()
 
@@ -182,9 +182,9 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         latent, mask, ids_restore = self.forward_encoder(x)
         pred = self.forward_decoder(latent, ids_restore)
 
-        loss = self.forward_loss(x, pred, mask)
+        losses = self.forward_loss(x, pred, mask)
 
-        return loss, pred
+        return losses, pred
 
     def predict(self, x, pred_samples=5):
         with torch.no_grad():
@@ -221,9 +221,9 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
 
 if __name__ == '__main__':
-    batch, seq_len, in_chans = 5, 100, 50
-    x = torch.rand((batch, seq_len, in_chans))
-    timae = TimeSeriesMaskedAutoencoder(in_chans)
+    batch, seq_len, input_dim = 5, 100, 50
+    x = torch.rand((batch, seq_len, input_dim))
+    timae = TimeSeriesMaskedAutoencoder(input_dim)
     losses, pred = timae(x)
 
     print(pred.shape, x.shape)

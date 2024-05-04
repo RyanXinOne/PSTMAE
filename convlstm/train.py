@@ -10,16 +10,16 @@ def main():
     summary(model.model)
 
     train_dataset = ShallowWaterDataset(path='shallow_water/train', flatten=False)
-    eval_dataset = ShallowWaterDataset(path='shallow_water/eval', flatten=False)
+    val_dataset = ShallowWaterDataset(path='shallow_water/val', flatten=False)
 
     train_loader = DataLoader(train_dataset, 8, num_workers=0, shuffle=True)
-    eval_loader = DataLoader(eval_dataset, 8, num_workers=0)
+    val_loader = DataLoader(val_dataset, 8, num_workers=0)
 
     trainer = pl.Trainer(
         max_epochs=10,
         logger=False
     )
-    trainer.fit(model, train_loader, eval_loader)
+    trainer.fit(model, train_loader, val_loader)
 
 
 if __name__ == "__main__":
