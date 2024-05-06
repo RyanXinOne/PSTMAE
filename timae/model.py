@@ -187,9 +187,12 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         return losses, pred
 
     def predict(self, x, pred_samples=5):
+        '''
+        Forecast the future steps given the input sequence.
+        '''
         with torch.no_grad():
             # embed patches
-            x = self.embedder(x[:, :-pred_samples, :])
+            x = self.embedder(x)
 
             # add pos embed
             x = self.pos_encoder_e(x * math.sqrt(self.embed_dim))
@@ -223,10 +226,12 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 if __name__ == '__main__':
     batch, seq_len, input_dim = 5, 100, 50
     x = torch.rand((batch, seq_len, input_dim))
+
     timae = TimeSeriesMaskedAutoencoder(input_dim)
     losses, pred = timae(x)
-
-    print(pred.shape, x.shape)
+    print(pred.shape)
     print(f'Losses : {[loss.item() for loss in losses]}')
 
-    timae.predict(x, 5)
+    x = x[:, :-5, :]
+    pred = timae.predict(x, 5)
+    print(pred.shape)

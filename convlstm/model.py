@@ -138,9 +138,7 @@ class ConvLSTM(nn.Module):
         b, _, _, h, w = input_tensor.size()
 
         # Implement stateful ConvLSTM
-        if hidden_state is not None:
-            raise NotImplementedError()
-        else:
+        if hidden_state is None:
             # Since the init is done in forward. Can send image size here
             hidden_state = self._init_hidden(batch_size=b, image_size=(h, w))
 
@@ -183,27 +181,64 @@ class ConvLSTM(nn.Module):
         return param
 
 
-class ConvLSTMForecaster(nn.Module):
-    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers, bias=True):
-        super(ConvLSTMForecaster, self).__init__()
-        self.convlstm = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True, bias=bias)
-        self.conv = nn.Conv2d(hidden_dim, input_dim, kernel_size=1)
+class SeqConv2d(nn.Conv2d):
+    '''
+    Conv2d for sequence data.
+    '''
 
     def forward(self, x):
         '''
         input shape: (b, l, c, h, w)
         '''
-        x, _ = self.convlstm(x)
-
-        b, l = x.size(0), x.size(1)
-        x = x.view(-1, x.size(-3), x.size(-2), x.size(-1))
-
-        x = self.conv(x)
-        x = F.sigmoid(x)
-
-        x = x.view(b, l, x.size(-3), x.size(-2), x.size(-1))
-
+        b, l, c, h, w = x.size()
+        x = x.reshape(-1, c, h, w)
+        x = super().forward(x)
+        x = x.reshape(b, l, x.size(1), x.size(2), x.size(3))
         return x
+
+
+class ConvLSTMForecaster(nn.Module):
+    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers, bias=True):
+        super(ConvLSTMForecaster, self).__init__()
+        self.encoder = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True, bias=bias, return_all_layers=True)
+        self.forecaster = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True, bias=bias, return_all_layers=True)
+        self.proj = nn.Sequential(
+            SeqConv2d(hidden_dim, input_dim, kernel_size=1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x, y):
+        '''
+        input shape: (b, l, c, h, w)
+        '''
+        # encode input sequence
+        _, hidden_state = self.encoder(x[:, :-1])
+
+        # forecast future sequence by teacher forcing
+        y_input = torch.cat([x[:, -1:], y[:, :-1]], dim=1)
+        y_pred, _ = self.forecaster(y_input, hidden_state)
+        y_pred = self.proj(y_pred[-1])
+
+        return y_pred
+
+    def predict(self, x, forecast_steps):
+        '''
+        input shape: (b, l, c, h, w)
+        '''
+        with torch.no_grad():
+            # encode input sequence
+            _, hidden_state = self.encoder(x)
+
+            # forecast future sequence
+            y_input = x[:, -1:]
+            y_pred = []
+            for _ in range(forecast_steps):
+                y_input, hidden_state = self.forecaster(y_input, hidden_state)
+                y_input = self.proj(y_input[-1])
+                y_pred.append(y_input)
+            y_pred = torch.cat(y_pred, dim=1)
+
+        return y_pred
 
 
 if __name__ == '__main__':
@@ -211,5 +246,8 @@ if __name__ == '__main__':
     print(model)
 
     x = torch.randn(5, 10, 3, 64, 64)
-    pred = model(x)
-    print(pred.shape)
+    y = torch.randn(5, 5, 3, 64, 64)
+    y_pred = model(x, y)
+    print(y_pred.shape)
+    y_pred = model.predict(x, 5)
+    print(y_pred.shape)

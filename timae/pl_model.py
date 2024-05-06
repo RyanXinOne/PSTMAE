@@ -6,7 +6,20 @@ from timae.model import TimeSeriesMaskedAutoencoder
 class LitTiMAE(pl.LightningModule):
     def __init__(self, input_dim):
         super().__init__()
-        self.model = TimeSeriesMaskedAutoencoder(input_dim)
+        self.model = TimeSeriesMaskedAutoencoder(
+            input_dim,
+            embed_dim=64,
+            num_heads=4,
+            depth=2,
+            decoder_embed_dim=32,
+            decoder_num_heads=4,
+            decoder_depth=2,
+            d_hid=128,
+            dropout=0.1,
+            mask_ratio=0.,
+            forecast_ratio=1.,
+            forecast_steps=5
+        )
         self.lr = 1e-3
 
     def training_step(self, batch, batch_idx):
