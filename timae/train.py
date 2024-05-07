@@ -9,8 +9,8 @@ def main():
     model = LitTiMAE(input_dim=3*64*64)
     summary(model.model)
 
-    train_dataset = ShallowWaterDataset(path='shallow_water/train', flatten=True)
-    val_dataset = ShallowWaterDataset(path='shallow_water/val', flatten=True)
+    train_dataset = ShallowWaterDataset(split='train', flatten=True)
+    val_dataset = ShallowWaterDataset(split='val', flatten=True)
 
     train_loader = DataLoader(train_dataset, 32, num_workers=0, shuffle=True)
     val_loader = DataLoader(val_dataset, 32, num_workers=0)

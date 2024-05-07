@@ -23,9 +23,11 @@ class SynthDataset(Dataset):
 
 
 class ShallowWaterDataset(Dataset):
-    def __init__(self, path, flatten=False):
+    def __init__(self, split, flatten=False):
         super().__init__()
-        self.path = path
+        if split not in ['train', 'val', 'test']:
+            raise ValueError("Invalid split.")
+        self.path = f'D:/Datasets/ShallowWater-simulation/{split}'
         self.files = os.listdir(self.path)
         self.flatten = flatten
 
@@ -60,7 +62,7 @@ class ShallowWaterDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = ShallowWaterDataset(path='shallow_water/train')  # SynthDataset(1000)
+    dataset = ShallowWaterDataset(split='test')  # SynthDataset(1000)
     print(len(dataset), dataset[0].shape)  # size, (seq_len, n_features...)
     print(dataset.min_vals.squeeze())
     print(dataset.max_vals.squeeze())
