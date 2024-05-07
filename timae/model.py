@@ -1,4 +1,3 @@
-import math
 import torch
 from torch import nn
 from timae.positional import PositionalEncoding
@@ -24,12 +23,11 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
     ):
         super().__init__()
 
-        self.embed_dim = embed_dim
         self.mask_ratio = mask_ratio
         self.forecast_ratio = forecast_ratio
         self.forecast_steps = forecast_steps
 
-        self.embedder = nn.Linear(input_dim, embed_dim, bias=False)
+        self.embedder = nn.Linear(input_dim, embed_dim)
         self.pos_encoder_e = PositionalEncoding(embed_dim)
         self.pos_encoder_d = PositionalEncoding(decoder_embed_dim)
 
@@ -44,7 +42,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
             ) for _ in range(depth)
         ])
         self.norm = nn.LayerNorm(embed_dim)
-        self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
+        self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim)
 
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
@@ -59,7 +57,10 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
             ) for _ in range(decoder_depth)
         ])
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, input_dim, bias=True)
+        self.decoder_pred = nn.Sequential(
+            nn.Linear(decoder_embed_dim, input_dim),
+            nn.Sigmoid(),
+        )
 
         self.initialize_weights()
 
@@ -83,14 +84,14 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         x: [N, L, D], sequence
         """
         N, L, D = x.shape  # batch, length, dim
-        len_keep = int(L * (1 - self.mask_ratio))
+        len_keep = int((L - self.forecast_steps) * (1 - self.mask_ratio))
 
         noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
 
         # perform forecasting masking
-        if self.forecast_ratio:
-            n_forecast_batches = int(N * self.forecast_ratio)
-            noise[-n_forecast_batches:, :-self.forecast_steps] -= 1.
+        n_forecast_batches = int(N * self.forecast_ratio)
+        if n_forecast_batches > 0:
+            noise[-n_forecast_batches:, -(len_keep + self.forecast_steps):-self.forecast_steps] -= 1.
 
         # sort noise for each sample
         ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
@@ -113,7 +114,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         x = self.embedder(x)
 
         # add pos embed
-        x = self.pos_encoder_e(x * math.sqrt(self.embed_dim))
+        x = self.pos_encoder_e(x)
 
         # masking: length -> length * mask_ratio
         x, mask, ids_restore = self.random_masking(x)
@@ -157,26 +158,28 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         loss = (x - pred) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per timestamp
 
-        inv_mask = (mask - 1) ** 2
-        loss_removed = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
-        loss_seen = (loss * inv_mask).sum() / inv_mask.sum()  # mean loss on seen patches
-
-        # calculate forecast and backcast loss
-        if self.forecast_ratio:
-            n_forecast_batches = int(pred.shape[0] * self.forecast_ratio)
+        # calculate forecast and foreseen loss
+        n_forecast_batches = int(pred.shape[0] * self.forecast_ratio)
+        if n_forecast_batches > 0:
             loss_forecast = loss[-n_forecast_batches:, :]
             mask_forecast = mask[-n_forecast_batches:, :]
+            mask_foreseen = (mask_forecast - 1) ** 2
+
+            forecast_loss = loss_forecast[:, -self.forecast_steps:].sum() / mask_forecast[:, -self.forecast_steps:].sum() if mask_forecast[:, -self.forecast_steps:].sum() > 0 else 0
+            foreseen_loss = (loss_forecast * mask_foreseen).sum() / mask_foreseen.sum() if mask_foreseen.sum() > 0 else 0
 
             loss = loss[:-n_forecast_batches, :]
             mask = mask[:-n_forecast_batches, :]
-
-            forecast_loss = loss_forecast[:, -self.forecast_steps:].sum() / mask_forecast[:, -self.forecast_steps:].sum()
-            backcast_loss = (loss_forecast * mask_forecast)[:, :-self.forecast_steps].sum() / mask_forecast[:, :-self.forecast_steps].sum()
         else:
             forecast_loss = 0
-            backcast_loss = 0
+            foreseen_loss = 0
 
-        return loss_removed, loss_seen, forecast_loss, backcast_loss
+        # calculate masked and seen loss
+        inv_mask = (mask - 1) ** 2
+        loss_removed = (loss * mask).sum() / mask.sum() if mask.sum() > 0 else 0
+        loss_seen = (loss * inv_mask).sum() / inv_mask.sum() if inv_mask.sum() > 0 else 0
+
+        return loss_removed, loss_seen, forecast_loss, foreseen_loss
 
     def forward(self, x):
         latent, mask, ids_restore = self.forward_encoder(x)
@@ -195,7 +198,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
             x = self.embedder(x)
 
             # add pos embed
-            x = self.pos_encoder_e(x * math.sqrt(self.embed_dim))
+            x = self.pos_encoder_e(x)
 
             # apply Transformer blocks
             for blk in self.blocks:
@@ -227,10 +230,10 @@ if __name__ == '__main__':
     batch, seq_len, input_dim = 5, 100, 50
     x = torch.rand((batch, seq_len, input_dim))
 
-    timae = TimeSeriesMaskedAutoencoder(input_dim)
+    timae = TimeSeriesMaskedAutoencoder(input_dim, mask_ratio=0., forecast_ratio=1., forecast_steps=5)
     losses, pred = timae(x)
     print(pred.shape)
-    print(f'Losses : {[loss.item() for loss in losses]}')
+    print(f'Losses : {[loss for loss in losses]}')
 
     x = x[:, :-5, :]
     pred = timae.predict(x, 5)

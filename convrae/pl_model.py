@@ -19,6 +19,7 @@ class LitConvRAE(pl.LightningModule):
         self.log('train/loss', loss)
         self.log('train/full_state_loss', full_state_loss)
         self.log('train/latent_loss', latent_loss)
+        self.log('train/mse', full_state_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -26,6 +27,15 @@ class LitConvRAE(pl.LightningModule):
         y_pred = self.model.predict(x, self.forecast_steps)
         full_state_loss = self.compute_loss(y, y_pred)
         self.log('val/full_state_loss', full_state_loss)
+        self.log('val/mse', full_state_loss)
+        return full_state_loss
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch[:, :-self.forecast_steps], batch[:, -self.forecast_steps:]
+        y_pred = self.model.predict(x, self.forecast_steps)
+        full_state_loss = self.compute_loss(y, y_pred)
+        self.log('test/full_state_loss', full_state_loss)
+        self.log('test/mse', full_state_loss)
         return full_state_loss
 
     def configure_optimizers(self):
@@ -33,9 +43,11 @@ class LitConvRAE(pl.LightningModule):
         return optimizer
 
     def compute_loss(self, y, y_pred, z1=None, z2=None):
-        full_state_loss = F.mse_loss(y_pred, y) / (torch.linalg.norm(y) / y.numel() + 1e-6)
+        full_state_loss = F.mse_loss(y_pred, y)
         if z1 is None or z2 is None:
             return full_state_loss
-        latent_loss = F.mse_loss(z2, z1) / (torch.linalg.norm(z1) / z1.numel() + 1e-6)
-        loss = full_state_loss + latent_loss
+
+        latent_loss = F.mse_loss(z2, z1)
+
+        loss = full_state_loss / (torch.linalg.norm(y) / y.numel() + 1e-8) + latent_loss / (torch.linalg.norm(z1) / z1.numel() + 1e-8)
         return loss, full_state_loss, latent_loss

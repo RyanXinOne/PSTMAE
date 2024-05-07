@@ -7,7 +7,7 @@ from convlstm.model import ConvLSTMForecaster
 class LitConvLSTM(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = ConvLSTMForecaster(input_dim=3, hidden_dim=32, kernel_size=3, num_layers=2)
+        self.model = ConvLSTMForecaster(input_dim=3, hidden_dim=6, kernel_size=3, num_layers=2)
         self.lr = 1e-3
         self.forecast_steps = 5
 
@@ -16,6 +16,7 @@ class LitConvLSTM(pl.LightningModule):
         y_pred = self.model(x, y)
         loss = F.mse_loss(y_pred, y)
         self.log('train/loss', loss)
+        self.log('train/mse', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -23,6 +24,15 @@ class LitConvLSTM(pl.LightningModule):
         y_pred = self.model.predict(x, self.forecast_steps)
         loss = F.mse_loss(y_pred, y)
         self.log('val/loss', loss)
+        self.log('val/mse', loss)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch[:, :-self.forecast_steps], batch[:, -self.forecast_steps:]
+        y_pred = self.model.predict(x, self.forecast_steps)
+        loss = F.mse_loss(y_pred, y)
+        self.log('test/loss', loss)
+        self.log('test/mse', loss)
         return loss
 
     def configure_optimizers(self):
