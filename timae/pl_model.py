@@ -5,10 +5,9 @@ from timae.model import TimeSeriesMaskedAutoencoder
 
 
 class LitTiMAE(pl.LightningModule):
-    def __init__(self, input_dim):
+    def __init__(self):
         super().__init__()
         self.model = TimeSeriesMaskedAutoencoder(
-            input_dim,
             embed_dim=256,
             num_heads=4,
             depth=16,

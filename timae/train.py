@@ -6,7 +6,7 @@ from data.dataset import ShallowWaterDataset
 
 
 def main():
-    model = LitTiMAE(input_dim=3*64*64)
+    model = LitTiMAE()
     summary(model.model)
 
     train_dataset = ShallowWaterDataset(split='train', flatten=True)

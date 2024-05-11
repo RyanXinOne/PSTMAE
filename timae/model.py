@@ -1,14 +1,59 @@
+import math
 import torch
 from torch import nn
-from timae.positional import PositionalEncoding
+
+
+class SeqConv2d(nn.Conv2d):
+    '''
+    Conv2d for sequence data.
+    '''
+
+    def forward(self, x):
+        '''
+        input shape: (b, l, c, h, w)
+        '''
+        b, l, c, h, w = x.size()
+        x = x.reshape(-1, c, h, w)
+        x = super().forward(x)
+        x = x.reshape(b, l, x.size(1), x.size(2), x.size(3))
+        return x
+
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0.1, max_len=1000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(1, max_len, d_model)
+        pe[0, :, 0::2] = torch.sin(position * div_term)
+        pe[0, :, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Tensor, shape [batch_size, seq_len, d_model]
+
+        Returns:
+            output Tensor of shape [batch_size, seq_len, d_model]
+        """
+
+        x = x + self.pe[:, :x.size(1), :]
+        return self.dropout(x)
 
 
 class TimeSeriesMaskedAutoencoder(nn.Module):
-    """Masked Autoencoder with VanillaTransformer backbone for TimeSeries"""
+    """
+    Masked Autoencoder with VanillaTransformer backbone for TimeSeries.
+
+    input shape: (N, L, W)
+    """
 
     def __init__(
         self,
-        input_dim,
+        img_size=(3, 64, 64),
         embed_dim=64,
         num_heads=4,
         depth=2,
@@ -27,7 +72,13 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         self.forecast_ratio = forecast_ratio
         self.forecast_steps = forecast_steps
 
-        self.embedder = nn.Linear(input_dim, embed_dim)
+        self.embedder = nn.Sequential(
+            nn.Unflatten(2, img_size),
+            SeqConv2d(img_size[0], 4, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Flatten(start_dim=2),
+            nn.Linear(4 * (img_size[1] // 2) * (img_size[2] // 2), embed_dim),
+        )
         self.pos_encoder_e = PositionalEncoding(embed_dim)
         self.pos_encoder_d = PositionalEncoding(decoder_embed_dim)
 
@@ -58,7 +109,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         ])
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
         self.decoder_pred = nn.Sequential(
-            nn.Linear(decoder_embed_dim, input_dim),
+            nn.Linear(decoder_embed_dim, img_size[0] * img_size[1] * img_size[2]),
             nn.Sigmoid(),
         )
 
@@ -150,7 +201,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
     def forward_loss(self, x, pred, mask):
         """
-        x: [N, W, L]
+        x: [N, L, W]
         pred: [N, L, W]
         mask: [N, W], 0 is keep, 1 is remove,
         """
@@ -227,14 +278,13 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
 
 if __name__ == '__main__':
-    batch, seq_len, input_dim = 5, 100, 50
-    x = torch.rand((batch, seq_len, input_dim))
+    x = torch.rand((5, 50, 12288))
 
-    timae = TimeSeriesMaskedAutoencoder(input_dim, mask_ratio=0., forecast_ratio=1., forecast_steps=5)
+    timae = TimeSeriesMaskedAutoencoder(mask_ratio=0., forecast_ratio=1., forecast_steps=5)
     losses, pred = timae(x)
     print(pred.shape)
     print(f'Losses : {[loss for loss in losses]}')
 
-    x = x[:, :-5, :]
+    x = x[:, :-5]
     pred = timae.predict(x, 5)
     print(pred.shape)
