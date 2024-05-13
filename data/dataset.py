@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+import matplotlib.pyplot as plt
 
 
 class SynthDataset(Dataset):
@@ -60,9 +61,28 @@ class ShallowWaterDataset(Dataset):
         '''
         return (data - self.min_vals) / (self.max_vals - self.min_vals)
 
+    @staticmethod
+    def visualise_sequence(data, save_path=None):
+        '''
+        Visualise a sequence of data with shape (seq_len, n_channels, height, width).
+        '''
+        data = data.cpu().numpy()
+        seq_len, n_channels, height, width = data.shape
+        fig, axs = plt.subplots(n_channels, seq_len, figsize=(seq_len, n_channels))
+        for i in range(n_channels):
+            for j in range(seq_len):
+                axs[i, j].imshow(data[j, i])
+                axs[i, j].axis('off')
+        if save_path:
+            plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        else:
+            plt.show()
+        plt.close()
+
 
 if __name__ == '__main__':
     dataset = ShallowWaterDataset(split='test')  # SynthDataset(1000)
     print(len(dataset), dataset[0].shape)  # size, (seq_len, n_features...)
     print(dataset.min_vals.squeeze())
     print(dataset.max_vals.squeeze())
+    ShallowWaterDataset.visualise_sequence(dataset[0])

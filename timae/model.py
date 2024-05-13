@@ -53,7 +53,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
     def __init__(
         self,
-        img_size=(3, 64, 64),
+        img_size,
         embed_dim=64,
         num_heads=4,
         depth=2,
@@ -238,7 +238,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
         losses = self.forward_loss(x, pred, mask)
 
-        return losses, pred
+        return losses, pred, mask
 
     def predict(self, x, pred_samples=5):
         '''
@@ -280,10 +280,11 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 if __name__ == '__main__':
     x = torch.rand((5, 50, 12288))
 
-    timae = TimeSeriesMaskedAutoencoder(mask_ratio=0., forecast_ratio=1., forecast_steps=5)
-    losses, pred = timae(x)
-    print(pred.shape)
+    timae = TimeSeriesMaskedAutoencoder(img_size=(3, 64, 64), mask_ratio=0., forecast_ratio=1., forecast_steps=5)
+    losses, pred, mask = timae(x)
     print(f'Losses : {[loss for loss in losses]}')
+    print(pred.shape)
+    print(mask[0])
 
     x = x[:, :-5]
     pred = timae.predict(x, 5)

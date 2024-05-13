@@ -26,6 +26,7 @@ def main():
     )
     trainer.fit(model, train_loader, val_loader)
     trainer.test(model, test_loader)
+    trainer.predict(model, test_loader)
 
 
 if __name__ == "__main__":
