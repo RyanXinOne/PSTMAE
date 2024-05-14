@@ -12,20 +12,20 @@ class LitTiMAE(pl.LightningModule):
         self.img_size = (3, 64, 64)
         self.model = TimeSeriesMaskedAutoencoder(
             img_size=self.img_size,
-            embed_dim=256,
+            embed_dim=512,
             num_heads=4,
             depth=16,
-            decoder_embed_dim=256,
+            decoder_embed_dim=512,
             decoder_num_heads=4,
-            decoder_depth=8,
-            d_hid=512,
+            decoder_depth=4,
+            d_hid=1024,
             dropout=0.1,
             mask_ratio=0.,
             forecast_ratio=1.,
             forecast_steps=5
         )
         self.lr = 1e-3
-        self.visulise_num = 5
+        self.visulise_num = 10
 
     def training_step(self, batch, batch_idx):
         (loss_removed, loss_seen, forecast_loss, foreseen_loss), _, _ = self.model(batch)
@@ -79,6 +79,7 @@ class LitTiMAE(pl.LightningModule):
             data[mask] = pred[mask]
             data = data.unflatten(1, self.img_size)
             ShallowWaterDataset.visualise_sequence(data, f'logs/timae/output/predict_{batch_idx*batch_size+i}.png')
+        return preds
 
     def configure_optimizers(self):
         optimizer = optim.RAdam(self.parameters(), lr=self.lr)

@@ -19,6 +19,22 @@ class SeqConv2d(nn.Conv2d):
         return x
 
 
+class SeqTransposeConv2d(nn.ConvTranspose2d):
+    '''
+    ConvTranspose2d for sequence data.
+    '''
+
+    def forward(self, x):
+        '''
+        input shape: (b, l, c, h, w)
+        '''
+        b, l, c, h, w = x.size()
+        x = x.reshape(-1, c, h, w)
+        x = super().forward(x)
+        x = x.reshape(b, l, x.size(1), x.size(2), x.size(3))
+        return x
+
+
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=1000):
         super().__init__()
@@ -110,6 +126,11 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
         self.decoder_pred = nn.Sequential(
             nn.Linear(decoder_embed_dim, img_size[0] * img_size[1] * img_size[2]),
+            # nn.Linear(decoder_embed_dim, 4 * (img_size[1] // 2) * (img_size[2] // 2)),
+            # nn.ReLU(),
+            # nn.Unflatten(2, (4, img_size[1] // 2, img_size[2] // 2)),
+            # SeqTransposeConv2d(4, img_size[0], 3, stride=2, padding=1, output_padding=1),
+            # nn.Flatten(start_dim=2),
             nn.Sigmoid(),
         )
 

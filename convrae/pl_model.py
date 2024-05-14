@@ -13,7 +13,7 @@ class LitConvRAE(pl.LightningModule):
         self.model = ConvRAE(input_dim=3, latent_dim=128, hidden_dim=128)
         self.lr = 1e-3
         self.forecast_steps = 5
-        self.visualise_num = 5
+        self.visualise_num = 10
 
     def training_step(self, batch, batch_idx):
         x, y = batch[:, :-self.forecast_steps], batch[:, -self.forecast_steps:]
@@ -56,6 +56,7 @@ class LitConvRAE(pl.LightningModule):
                 break
             data = torch.cat([x[i], y_pred[i]], dim=0)
             ShallowWaterDataset.visualise_sequence(data, f'logs/convrae/output/predict_{batch_idx*batch_size+i}.png')
+        return y_pred
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
