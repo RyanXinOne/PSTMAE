@@ -1,12 +1,12 @@
 from torch.utils.data import DataLoader
 import lightning.pytorch as pl
 from torchinfo import summary
-from convrae.pl_model import LitConvRAE
+from models.convlstm.pl_model import LitConvLSTM
 from data.dataset import ShallowWaterDataset
 
 
 def main():
-    model = LitConvRAE()
+    model = LitConvLSTM()
     summary(model.model)
 
     train_dataset = ShallowWaterDataset(split='train', flatten=False)
@@ -22,7 +22,7 @@ def main():
         logger=True,
         log_every_n_steps=10,
         enable_checkpointing=False,
-        default_root_dir='logs/convrae',
+        default_root_dir='logs/convlstm',
     )
     trainer.fit(model, train_loader, val_loader)
     trainer.test(model, test_loader)

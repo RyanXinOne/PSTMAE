@@ -3,7 +3,7 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
-from convlstm.model import ConvLSTMForecaster
+from models.convlstm.model import ConvLSTMForecaster
 from data.dataset import ShallowWaterDataset
 
 

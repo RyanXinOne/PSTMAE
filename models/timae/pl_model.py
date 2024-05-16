@@ -2,7 +2,7 @@ import os
 import torch
 from torch import optim
 import lightning.pytorch as pl
-from timae.model import TimeSeriesMaskedAutoencoder
+from models.timae.model import TimeSeriesMaskedAutoencoder
 from data.dataset import ShallowWaterDataset
 
 

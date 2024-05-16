@@ -3,7 +3,7 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
-from convrae.model import ConvRAE
+from models.convrae.model import ConvRAE
 from data.dataset import ShallowWaterDataset
 
 
