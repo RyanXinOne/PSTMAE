@@ -15,7 +15,7 @@ def main():
 
     train_loader = DataLoader(train_dataset, 32, shuffle=True)
     val_loader = DataLoader(val_dataset, 32)
-    test_loader = DataLoader(test_dataset, 32)
+    test_loader = DataLoader(test_dataset, 32, shuffle=True)
 
     trainer = pl.Trainer(
         max_epochs=20,

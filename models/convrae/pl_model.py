@@ -3,63 +3,98 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
-from models.convrae.model import ConvRAE
+from models.convrae import ConvRAE
+from models.autoencoder.pl_model import LitAutoEncoder
 from data.dataset import ShallowWaterDataset
 
 
 class LitConvRAE(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = ConvRAE(input_dim=3, latent_dim=128, hidden_dim=128)
+        self.model = ConvRAE(input_dim=3, latent_dim=512, hidden_dim=512)
         self.lr = 1e-3
         self.forecast_steps = 5
-        self.visualise_num = 10
+        self.visualise_num = 5
+
+        # load pretrained autoencoder
+        state_dict = LitAutoEncoder.load_from_checkpoint('logs/autoencoder/lightning_logs/prod/checkpoints/epoch=49-step=14950.ckpt').model.state_dict()
+        self.model.autoencoder.load_state_dict(state_dict)
+        # freeze autoencoder
+        for param in self.model.autoencoder.parameters():
+            param.requires_grad = False
 
     def training_step(self, batch, batch_idx):
-        x, y = batch[:, :-self.forecast_steps], batch[:, -self.forecast_steps:]
-        y_pred, z1, z2 = self.model(x, y)
-        loss, full_state_loss, latent_loss = self.compute_loss(y, y_pred, z1, z2)
+        self.model.autoencoder.eval()
+        x, y, mask = batch
+        for i in range(len(x)):
+            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
+        x_pred, y_pred, zx_1, zx_2, zy_1, zy_2 = self.model(x, y)
+        loss, full_state_loss, latent_loss = self.compute_loss(
+            torch.cat([x, y], dim=1),
+            torch.cat([x_pred, y_pred], dim=1),
+            torch.cat([zx_1, zy_1], dim=1),
+            torch.cat([zx_2, zy_2], dim=1),
+        )
         self.log('train/loss', loss)
-        self.log('train/full_state_loss', full_state_loss)
-        self.log('train/latent_loss', latent_loss)
         self.log('train/mse', full_state_loss)
+        self.log('train/latent_mse', latent_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch[:, :-self.forecast_steps], batch[:, -self.forecast_steps:]
+        x, y, mask = batch
+        for i in range(len(x)):
+            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
         with torch.no_grad():
-            y_pred = self.model.predict(x, self.forecast_steps)
-            full_state_loss = self.compute_loss(y, y_pred)
-        self.log('val/full_state_loss', full_state_loss)
+            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            full_state_loss = self.compute_loss(
+                torch.cat([x, y], dim=1),
+                torch.cat([x_pred, y_pred], dim=1),
+            )
         self.log('val/mse', full_state_loss)
         return full_state_loss
 
     def test_step(self, batch, batch_idx):
-        x, y = batch[:, :-self.forecast_steps], batch[:, -self.forecast_steps:]
+        x, y, mask = batch
+        for i in range(len(x)):
+            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
         with torch.no_grad():
-            y_pred = self.model.predict(x, self.forecast_steps)
-            full_state_loss = self.compute_loss(y, y_pred)
-        self.log('test/full_state_loss', full_state_loss)
+            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            full_state_loss = self.compute_loss(
+                torch.cat([x, y], dim=1),
+                torch.cat([x_pred, y_pred], dim=1),
+            )
         self.log('test/mse', full_state_loss)
         return full_state_loss
 
     def predict_step(self, batch, batch_idx):
-        batch_size = len(batch)
+        x, y, mask = batch
+        for i in range(len(x)):
+            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
+        batch_size = len(x)
         os.makedirs('logs/convrae/output', exist_ok=True)
 
-        x = batch[:, :-self.forecast_steps]
         with torch.no_grad():
-            y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
 
         for i in range(batch_size):
             if batch_idx*batch_size+i >= self.visualise_num:
                 break
-            data = torch.cat([x[i], y_pred[i]], dim=0)
-            ShallowWaterDataset.visualise_sequence(data, f'logs/convrae/output/predict_{batch_idx*batch_size+i}.png')
+            ShallowWaterDataset.visualise_sequence(
+                torch.cat([x[i], y[i]], dim=0),
+                save_path=f'logs/convrae/output/input_{batch_idx*batch_size+i}.png'
+            )
+            ShallowWaterDataset.visualise_sequence(
+                torch.cat([x_pred[i], y_pred[i]], dim=0),
+                save_path=f'logs/convrae/output/predict_{batch_idx*batch_size+i}.png'
+            )
         return y_pred
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.lr)
+        optimizer = optim.AdamW(self.parameters(), lr=self.lr)
         return optimizer
 
     def compute_loss(self, y, y_pred, z1=None, z2=None):
