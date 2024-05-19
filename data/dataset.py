@@ -9,13 +9,16 @@ class ShallowWaterDataset(Dataset):
     '''
     Dataset for Shallow Water simulation data.
     '''
-    def __init__(self, split, sequence_step=10, flatten=False):
+
+    def __init__(self, split, sequence_steps=10, forecast_steps=5, masking_steps=1, flatten=False):
         super().__init__()
         if split not in ['train', 'val', 'test']:
             raise ValueError("Invalid split.")
         self.path = f'D:/Datasets/ShallowWater-simulation/{split}'
         self.files = os.listdir(self.path)
-        self.sequence_steps = sequence_step
+        self.sequence_steps = sequence_steps
+        self.forecast_steps = forecast_steps
+        self.masking_steps = masking_steps
         self.flatten = flatten
 
         # compute min and max values of h, u, v for normalisation
@@ -47,7 +50,14 @@ class ShallowWaterDataset(Dataset):
         if self.flatten:
             data = data.flatten(start_dim=1, end_dim=-1)
 
-        return data
+        x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
+
+        # generate random mask
+        mask = torch.zeros(x.size(0))
+        mask_idx = np.random.choice(x.size(0), self.masking_steps, replace=False)
+        mask[mask_idx] = 1
+
+        return x, y, mask
 
     def normalise(self, data):
         '''
@@ -56,14 +66,16 @@ class ShallowWaterDataset(Dataset):
         return (data - self.min_vals) / (self.max_vals - self.min_vals)
 
     @staticmethod
-    def visualise_sequence(data, save_path=None):
+    def visualise_sequence(data, vmin=None, vmax=None, save_path=None):
         '''
         Visualise a sequence of data with shape (seq_len, n_channels, height, width).
         '''
         data = data.cpu().numpy()
         seq_len, n_channels, height, width = data.shape
-        min_val = data.min(axis=(0, 2, 3))
-        max_val = data.max(axis=(0, 2, 3))
+        vmin = [vmin] * n_channels if isinstance(vmin, (int, float)) else vmin
+        vmax = [vmax] * n_channels if isinstance(vmax, (int, float)) else vmax
+        min_val = data.min(axis=(0, 2, 3)) if vmin is None else vmin
+        max_val = data.max(axis=(0, 2, 3)) if vmax is None else vmax
 
         fig, axs = plt.subplots(n_channels, seq_len, figsize=(seq_len, n_channels))
         for i in range(n_channels):
@@ -77,10 +89,72 @@ class ShallowWaterDataset(Dataset):
             plt.show()
         plt.close()
 
+    @staticmethod
+    def interpolate(data, mask):
+        '''
+        Interpolate the masked steps in a sequence of data.
+
+        Args:
+            data: torch.Tensor, shape (seq_len, n_channels, height, width)
+            mask: torch.Tensor, shape (seq_len), 1 for masked steps, 0 for observed steps
+        '''
+        data = data.clone()
+        seq_len = data.shape[0]
+
+        # Convert mask to boolean for easier indexing
+        mask = mask.bool()
+
+        # Handle missing first image
+        if mask[0]:
+            for i in range(1, seq_len):
+                if not mask[i]:
+                    data[0] = data[i].clone()
+                    break
+            else:
+                data[0].zero_()
+
+        # Handle missing last image
+        if mask[-1]:
+            for i in range(seq_len - 2, -1, -1):
+                if not mask[i]:
+                    data[-1] = data[i].clone()
+                    break
+            else:
+                data[-1].zero_()
+
+        # Interpolating internal missing images
+        i = 1
+        while i < seq_len - 1:
+            if mask[i]:
+                start_index = i - 1
+                end_index = i + 1
+                while end_index < seq_len - 1 and mask[end_index]:
+                    end_index += 1
+
+                num_missing = end_index - start_index - 1
+
+                # Linearly interpolate missing images
+                for j in range(1, num_missing + 1):
+                    weight_start = (num_missing + 1 - j) / (num_missing + 1)
+                    weight_end = j / (num_missing + 1)
+                    data[start_index + j] = weight_start * data[start_index] + weight_end * data[end_index]
+
+                i = end_index + 1
+            else:
+                i += 1
+
+        return data
+
 
 if __name__ == '__main__':
-    dataset = ShallowWaterDataset(split='train')
-    print(len(dataset), dataset[0].shape)  # size, (seq_len, n_features...)
+    dataset = ShallowWaterDataset(split='train', forecast_steps=5, masking_steps=1)
+    print(len(dataset))  # size
     print(dataset.min_vals.squeeze())
     print(dataset.max_vals.squeeze())
-    ShallowWaterDataset.visualise_sequence(dataset[-1])
+    x, y, mask = dataset[-1]
+    print(x.shape, y.shape)
+    print(mask)
+    
+    interpolated_x = ShallowWaterDataset.interpolate(x, mask)
+    print((x - interpolated_x).numpy().max(axis=(1, 2, 3)))
+    ShallowWaterDataset.visualise_sequence(torch.cat([x, interpolated_x], dim=0))
