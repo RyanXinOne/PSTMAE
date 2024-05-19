@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from models.common import SeqConv2d
 
 
 class ConvLSTMCell(nn.Module):
@@ -181,28 +181,16 @@ class ConvLSTM(nn.Module):
         return param
 
 
-class SeqConv2d(nn.Conv2d):
-    '''
-    Conv2d for sequence data.
-    '''
-
-    def forward(self, x):
-        '''
-        input shape: (b, l, c, h, w)
-        '''
-        b, l, c, h, w = x.size()
-        x = x.reshape(-1, c, h, w)
-        x = super().forward(x)
-        x = x.reshape(b, l, x.size(1), x.size(2), x.size(3))
-        return x
-
-
 class ConvLSTMForecaster(nn.Module):
     def __init__(self, input_dim, hidden_dim, kernel_size, num_layers, bias=True):
         super(ConvLSTMForecaster, self).__init__()
         self.encoder = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True, bias=bias, return_all_layers=True)
         self.forecaster = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True, bias=bias, return_all_layers=True)
-        self.proj = nn.Sequential(
+        self.proj_e = nn.Sequential(
+            SeqConv2d(hidden_dim, input_dim, kernel_size=1),
+            nn.Sigmoid()
+        )
+        self.proj_f = nn.Sequential(
             SeqConv2d(hidden_dim, input_dim, kernel_size=1),
             nn.Sigmoid()
         )
@@ -212,14 +200,15 @@ class ConvLSTMForecaster(nn.Module):
         input shape: (b, l, c, h, w)
         '''
         # encode input sequence
-        _, hidden_state = self.encoder(x[:, :-1])
+        x_pred, hidden_state = self.encoder(x)
+        x_pred = self.proj_e(x_pred[-1])
 
         # forecast future sequence by teacher forcing
         y_input = torch.cat([x[:, -1:], y[:, :-1]], dim=1)
         y_pred, _ = self.forecaster(y_input, hidden_state)
-        y_pred = self.proj(y_pred[-1])
+        y_pred = self.proj_f(y_pred[-1])
 
-        return y_pred
+        return x_pred, y_pred
 
     def predict(self, x, forecast_steps):
         '''
@@ -227,18 +216,19 @@ class ConvLSTMForecaster(nn.Module):
         '''
         with torch.no_grad():
             # encode input sequence
-            _, hidden_state = self.encoder(x)
+            x_pred, hidden_state = self.encoder(x)
+            x_pred = self.proj_e(x_pred[-1])
 
             # forecast future sequence
             y_input = x[:, -1:]
             y_pred = []
             for _ in range(forecast_steps):
                 y_input, hidden_state = self.forecaster(y_input, hidden_state)
-                y_input = self.proj(y_input[-1])
+                y_input = self.proj_f(y_input[-1])
                 y_pred.append(y_input)
             y_pred = torch.cat(y_pred, dim=1)
 
-        return y_pred
+        return x_pred, y_pred
 
 
 if __name__ == '__main__':
@@ -247,7 +237,7 @@ if __name__ == '__main__':
 
     x = torch.randn(5, 10, 3, 64, 64)
     y = torch.randn(5, 5, 3, 64, 64)
-    y_pred = model(x, y)
-    print(y_pred.shape)
-    y_pred = model.predict(x, 5)
-    print(y_pred.shape)
+    x_pred, y_pred = model(x, y)
+    print(x_pred.shape, y_pred.shape)
+    x_pred, y_pred = model.predict(x, 5)
+    print(x_pred.shape, y_pred.shape)
