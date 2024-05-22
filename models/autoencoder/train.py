@@ -9,9 +9,9 @@ def main():
     model = LitAutoEncoder()
     summary(model.model)
 
-    train_dataset = ShallowWaterDataset(split='train', forecast_steps=0, flatten=False)
-    val_dataset = ShallowWaterDataset(split='val', forecast_steps=0, flatten=False)
-    test_dataset = ShallowWaterDataset(split='test', forecast_steps=0, flatten=False)
+    train_dataset = ShallowWaterDataset(split='train', forecast_steps=0)
+    val_dataset = ShallowWaterDataset(split='val', forecast_steps=0)
+    test_dataset = ShallowWaterDataset(split='test', forecast_steps=0)
 
     train_loader = DataLoader(train_dataset, 32, shuffle=True)
     val_loader = DataLoader(val_dataset, 32)

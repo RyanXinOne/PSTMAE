@@ -1,92 +1,111 @@
 import os
 import torch
 from torch import optim
+import torch.nn.functional as F
 import lightning.pytorch as pl
-from models.timae.model import TimeSeriesMaskedAutoencoder
+from models.timae import TimeSeriesMaskedAutoencoder
+from models.autoencoder.pl_model import LitAutoEncoder
 from data.dataset import ShallowWaterDataset
 
 
 class LitTiMAE(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.img_size = (3, 64, 64)
         self.model = TimeSeriesMaskedAutoencoder(
-            img_size=self.img_size,
-            embed_dim=512,
-            num_heads=4,
-            depth=16,
-            decoder_embed_dim=512,
-            decoder_num_heads=4,
-            decoder_depth=4,
-            d_hid=1024,
-            dropout=0.1,
-            mask_ratio=0.,
-            forecast_ratio=1.,
+            input_dim=3,
+            latent_dim=512,
+            hidden_dim=1024,
+            encoder_num_heads=2,
+            encoder_depth=6,
+            decoder_num_heads=2,
+            decoder_depth=2,
             forecast_steps=5
         )
-        self.lr = 1e-3
-        self.visulise_num = 10
+        self.visulise_num = 5
+
+        # load pretrained autoencoder
+        state_dict = LitAutoEncoder.load_from_checkpoint('logs/autoencoder/lightning_logs/prod/checkpoints/epoch=49-step=14950.ckpt').model.state_dict()
+        self.model.autoencoder.load_state_dict(state_dict)
+        # freeze autoencoder
+        for param in self.model.autoencoder.parameters():
+            param.requires_grad = False
+
+    def configure_optimizers(self):
+        optimizer = optim.RAdam(
+            self.parameters(),
+            lr=1e-3,
+            weight_decay=1e-2)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=10,
+            eta_min=1e-4)
+        return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):
-        (loss_removed, loss_seen, forecast_loss, foreseen_loss), _, _ = self.model(batch)
-        loss = self.compute_loss(loss_removed, loss_seen, forecast_loss, foreseen_loss)
-        self.log('train/loss_removed', loss_removed)
-        self.log('train/loss_seen', loss_seen)
-        self.log('train/forecast_loss', forecast_loss)
-        self.log('train/foreseen_loss', foreseen_loss)
+        self.model.autoencoder.eval()
+        x, y, mask = batch
+        data = torch.cat([x, y], dim=1)
+        z1 = self.model.autoencoder.encode(data)
+        pred, z2 = self.model(x, mask)
+        loss, full_state_loss, latent_loss = self.compute_loss(data, pred, z1, z2)
         self.log('train/loss', loss)
-        self.log('train/mse', forecast_loss)
+        self.log('train/mse', full_state_loss)
+        self.log('train/latent_mse', latent_loss)
+        self.log('train/lr', self.trainer.optimizers[0].param_groups[0]['lr'])
         return loss
 
     def validation_step(self, batch, batch_idx):
+        x, y, mask = batch
+        data = torch.cat([x, y], dim=1)
         with torch.no_grad():
-            (loss_removed, loss_seen, forecast_loss, foreseen_loss), _, _ = self.model(batch)
-            loss = self.compute_loss(loss_removed, loss_seen, forecast_loss, foreseen_loss)
-        self.log('val/loss_removed', loss_removed)
-        self.log('val/loss_seen', loss_seen)
-        self.log('val/forecast_loss', forecast_loss)
-        self.log('val/foreseen_loss', foreseen_loss)
+            z1 = self.model.autoencoder.encode(data)
+            pred, z2 = self.model(x, mask)
+            loss, full_state_loss, latent_loss = self.compute_loss(data, pred, z1, z2)
         self.log('val/loss', loss)
-        self.log('val/mse', forecast_loss)
+        self.log('val/mse', full_state_loss)
+        self.log('val/latent_mse', latent_loss)
         return loss
 
     def test_step(self, batch, batch_idx):
+        x, y, mask = batch
+        data = torch.cat([x, y], dim=1)
         with torch.no_grad():
-            (loss_removed, loss_seen, forecast_loss, foreseen_loss), _, _ = self.model(batch)
-            loss = self.compute_loss(loss_removed, loss_seen, forecast_loss, foreseen_loss)
-        self.log('test/loss_removed', loss_removed)
-        self.log('test/loss_seen', loss_seen)
-        self.log('test/forecast_loss', forecast_loss)
-        self.log('test/foreseen_loss', foreseen_loss)
+            z1 = self.model.autoencoder.encode(data)
+            pred, z2 = self.model(x, mask)
+            loss, full_state_loss, latent_loss = self.compute_loss(data, pred, z1, z2)
         self.log('test/loss', loss)
-        self.log('test/mse', forecast_loss)
+        self.log('test/mse', full_state_loss)
+        self.log('test/latent_mse', latent_loss)
         return loss
 
     def predict_step(self, batch, batch_idx):
-        batch_size = len(batch)
+        x, y, mask = batch
+
+        batch_size = len(x)
         os.makedirs('logs/timae/output', exist_ok=True)
 
         with torch.no_grad():
-            _, preds, masks = self.model(batch)
-        inv_masks = (masks - 1) ** 2
-        masks, inv_masks = masks.bool(), inv_masks.bool()
+            pred, _ = self.model(x, mask)
+
         for i in range(batch_size):
             if batch_idx*batch_size+i >= self.visulise_num:
                 break
-            x, pred, mask, inv_mask = batch[i], preds[i], masks[i], inv_masks[i]
-            data = torch.zeros_like(x)
-            data[inv_mask] = x[inv_mask]
-            data[mask] = pred[mask]
-            data = data.unflatten(1, self.img_size)
-            ShallowWaterDataset.visualise_sequence(data, f'logs/timae/output/predict_{batch_idx*batch_size+i}.png')
-        return preds
+            ShallowWaterDataset.visualise_sequence(
+                torch.cat([x[i], y[i]], dim=0),
+                save_path=f'logs/timae/output/input_{batch_idx*batch_size+i}.png'
+            )
+            ShallowWaterDataset.visualise_sequence(
+                pred[i],
+                save_path=f'logs/timae/output/predict_{batch_idx*batch_size+i}.png'
+            )
+        return pred
 
-    def configure_optimizers(self):
-        optimizer = optim.RAdam(self.parameters(), lr=self.lr)
-        return optimizer
+    def compute_loss(self, x, pred, z1=None, z2=None):
+        full_state_loss = F.mse_loss(pred, x)
+        if z1 is None or z2 is None:
+            return full_state_loss
 
-    def compute_loss(self, loss_removed, loss_seen, forecast_loss, foreseen_loss):
-        loss = forecast_loss + 0.5 * foreseen_loss
-        if torch.isnan(loss).any():
-            raise ValueError('NaN loss')
-        return loss
+        latent_loss = F.mse_loss(z2, z1)
+
+        loss = full_state_loss / (torch.linalg.norm(x) / x.numel() + 1e-8) + latent_loss / (torch.linalg.norm(z1) / z1.numel() + 1e-8)
+        return loss, full_state_loss, latent_loss

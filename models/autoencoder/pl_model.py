@@ -11,9 +11,11 @@ class LitAutoEncoder(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = SeqConvAutoEncoder(input_dim=3, latent_dim=512)
-        self.lr = 1e-3
-        self.w_decay = 1e-4
         self.visualise_num = 5
+
+    def configure_optimizers(self):
+        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-4)
+        return optimizer
 
     def training_step(self, batch, batch_idx):
         pred, z = self.model(batch[0])
@@ -54,10 +56,6 @@ class LitAutoEncoder(pl.LightningModule):
             ShallowWaterDataset.visualise_sequence(batch[0][i], save_path=f'logs/autoencoder/output/input_{batch_idx*batch_size+i}.png')
             ShallowWaterDataset.visualise_sequence(pred[i], save_path=f'logs/autoencoder/output/predict_{batch_idx*batch_size+i}.png')
         return pred
-
-    def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.w_decay)
-        return optimizer
 
     def compute_loss(self, x, y, z):
         mse_loss = F.mse_loss(y, x)

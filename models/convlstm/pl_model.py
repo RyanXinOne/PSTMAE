@@ -11,9 +11,12 @@ class LitConvLSTM(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = ConvLSTMForecaster(input_dim=3, hidden_dim=6, kernel_size=3, num_layers=2)
-        self.lr = 1e-3
         self.forecast_steps = 5
         self.visualise_num = 5
+
+    def configure_optimizers(self):
+        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
+        return optimizer
 
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
@@ -80,9 +83,5 @@ class LitConvLSTM(pl.LightningModule):
             )
         return y_pred
 
-    def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.lr)
-        return optimizer
-
-    def compute_loss(self, y, y_pred):
-        return F.mse_loss(y_pred, y)
+    def compute_loss(self, x, pred):
+        return F.mse_loss(pred, x)
