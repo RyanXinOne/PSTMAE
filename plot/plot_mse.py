@@ -28,7 +28,9 @@ for model in ['timae', 'convrae', 'convlstm']:
 
 event_acc = event_accumulator.EventAccumulator(f"logs/autoencoder/lightning_logs/prod")
 event_acc.Reload()
-ae_mse = event_acc.Scalars('test/mse')[0].value
+ae_train_mse = event_acc.Scalars('train/mse')[-1].value
+ae_val_mse = event_acc.Scalars('val/mse')[-1].value
+ae_test_mse = event_acc.Scalars('test/mse')[-1].value
 
 
 fig, axs = plt.subplots(1, 3, figsize=(12, 3), gridspec_kw={'width_ratios': [2, 2, 1]})
@@ -52,7 +54,7 @@ for j, model in enumerate(all_stats.keys()):
 
         # Plot the extended part with dotted lines
         axs[i].plot(extra_steps, extended_mean_values, linestyle='--', color=axs[i].lines[-1].get_color())
-axs[i].axhline(ae_mse, linestyle='--', color='r', alpha=0.5,  label='autoencoder')
+axs[i].axhline(ae_train_mse, linestyle=':', color='r', alpha=0.7,  label='autoencoder')
 axs[i].set_yscale('log')
 axs[i].set_xlabel('Step')
 axs[i].set_ylabel('Value (log scale)')
@@ -78,9 +80,10 @@ for j, model in enumerate(all_stats.keys()):
 
         # Plot the extended part with dotted lines
         axs[i].plot(extra_steps, extended_mean_values, linestyle='--', color=axs[i].lines[-1].get_color())
-axs[i].axhline(ae_mse, linestyle='--', color='r', alpha=0.5,  label='autoencoder')
+axs[i].axhline(ae_val_mse, linestyle=':', color='r', alpha=0.7,  label='autoencoder')
+axs[i].set_yscale('log')
 axs[i].set_xlabel('Step')
-axs[i].set_ylabel('Value')
+axs[i].set_ylabel('Value (log scale)')
 axs[i].legend()
 axs[i].set_title(stat)
 
@@ -93,7 +96,7 @@ for j, model in enumerate(all_stats.keys()):
 
     # Visualize the data
     axs[i].errorbar(j, mean_values, yerr=std_values, fmt='o', capsize=5, label=model)
-axs[i].axhline(ae_mse, linestyle='--', color='r', alpha=0.5,  label='autoencoder')
+axs[i].axhline(ae_test_mse, linestyle=':', color='r', alpha=0.7,  label='autoencoder')
 axs[i].set_xticks([])
 axs[i].set_ylabel('Value')
 axs[i].legend()
