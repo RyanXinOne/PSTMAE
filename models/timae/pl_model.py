@@ -88,16 +88,15 @@ class LitTiMAE(pl.LightningModule):
             pred, _ = self.model(x, mask)
 
         for i in range(batch_size):
-            if batch_idx*batch_size+i >= self.visulise_num:
+            vi = batch_idx * batch_size + i
+            if vi >= self.visulise_num:
                 break
-            ShallowWaterDataset.visualise_sequence(
-                torch.cat([x[i], y[i]], dim=0),
-                save_path=f'logs/timae/output/input_{batch_idx*batch_size+i}.png'
-            )
-            ShallowWaterDataset.visualise_sequence(
-                pred[i],
-                save_path=f'logs/timae/output/predict_{batch_idx*batch_size+i}.png'
-            )
+            input_ = torch.cat([x[i], y[i]], dim=0)
+            output = pred[i]
+            diff = torch.abs(input_ - output)
+            ShallowWaterDataset.visualise_sequence(input_, save_path=f'logs/timae/output/input_{vi}.png')
+            ShallowWaterDataset.visualise_sequence(output, save_path=f'logs/timae/output/predict_{vi}.png')
+            ShallowWaterDataset.visualise_sequence(diff, save_path=f'logs/timae/output/diff_{vi}.png')
         return pred
 
     def compute_loss(self, x, pred, z1=None, z2=None):

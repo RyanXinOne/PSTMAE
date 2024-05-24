@@ -84,16 +84,15 @@ class LitConvRAE(pl.LightningModule):
             x_pred, y_pred = self.model.predict(x, self.forecast_steps)
 
         for i in range(batch_size):
-            if batch_idx*batch_size+i >= self.visualise_num:
+            vi = batch_idx * batch_size + i
+            if vi >= self.visualise_num:
                 break
-            ShallowWaterDataset.visualise_sequence(
-                torch.cat([x[i], y[i]], dim=0),
-                save_path=f'logs/convrae/output/input_{batch_idx*batch_size+i}.png'
-            )
-            ShallowWaterDataset.visualise_sequence(
-                torch.cat([x_pred[i], y_pred[i]], dim=0),
-                save_path=f'logs/convrae/output/predict_{batch_idx*batch_size+i}.png'
-            )
+            input_ = torch.cat([x[i], y[i]], dim=0)
+            output = torch.cat([x_pred[i], y_pred[i]], dim=0)
+            diff = torch.abs(input_ - output)
+            ShallowWaterDataset.visualise_sequence(input_, save_path=f'logs/convrae/output/input_{vi}.png')
+            ShallowWaterDataset.visualise_sequence(output, save_path=f'logs/convrae/output/predict_{vi}.png')
+            ShallowWaterDataset.visualise_sequence(diff, save_path=f'logs/convrae/output/diff_{vi}.png')
         return y_pred
 
     def compute_loss(self, x, pred, z1=None, z2=None):

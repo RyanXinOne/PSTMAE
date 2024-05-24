@@ -51,10 +51,15 @@ class LitAutoEncoder(pl.LightningModule):
             pred, _ = self.model(batch[0])
 
         for i in range(batch_size):
-            if batch_idx*batch_size+i >= self.visualise_num:
+            vi = batch_idx * batch_size + i
+            if vi >= self.visualise_num:
                 break
-            ShallowWaterDataset.visualise_sequence(batch[0][i], save_path=f'logs/autoencoder/output/input_{batch_idx*batch_size+i}.png')
-            ShallowWaterDataset.visualise_sequence(pred[i], save_path=f'logs/autoencoder/output/predict_{batch_idx*batch_size+i}.png')
+            input_ = batch[0][i]
+            output = pred[i]
+            diff = torch.abs(input_ - output)
+            ShallowWaterDataset.visualise_sequence(input_, save_path=f'logs/autoencoder/output/input_{vi}.png')
+            ShallowWaterDataset.visualise_sequence(output, save_path=f'logs/autoencoder/output/predict_{vi}.png')
+            ShallowWaterDataset.visualise_sequence(diff, save_path=f'logs/autoencoder/output/diff_{vi}.png')
         return pred
 
     def compute_loss(self, x, y, z):
