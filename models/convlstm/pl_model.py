@@ -4,6 +4,7 @@ from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convlstm import ConvLSTMForecaster
+from models.common import calculate_ssim_series, calculate_psnr_series
 from data.dataset import ShallowWaterDataset
 
 
@@ -49,14 +50,17 @@ class LitConvLSTM(pl.LightningModule):
         x, y, mask = batch
         for i in range(len(x)):
             x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+        data = torch.cat([x, y], dim=1)
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x, self.forecast_steps)
-            loss = self.compute_loss(
-                torch.cat([x, y], dim=1),
-                torch.cat([x_pred, y_pred], dim=1),
-            )
+            pred = torch.cat([x_pred, y_pred], dim=1)
+            loss = self.compute_loss(data, pred)
+            ssim_value = calculate_ssim_series(data, pred)
+            psnr_value = calculate_psnr_series(data, pred)
         self.log('test/mse', loss)
+        self.log('test/ssim', ssim_value)
+        self.log('test/psnr', psnr_value)
         return loss
 
     def predict_step(self, batch, batch_idx):

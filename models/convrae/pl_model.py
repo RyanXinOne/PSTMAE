@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convrae import ConvRAE
 from models.autoencoder.pl_model import LitAutoEncoder
+from models.common import calculate_ssim_series, calculate_psnr_series
 from data.dataset import ShallowWaterDataset
 
 
@@ -62,14 +63,17 @@ class LitConvRAE(pl.LightningModule):
         x, y, mask = batch
         for i in range(len(x)):
             x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+        data = torch.cat([x, y], dim=1)
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x, self.forecast_steps)
-            full_state_loss = self.compute_loss(
-                torch.cat([x, y], dim=1),
-                torch.cat([x_pred, y_pred], dim=1),
-            )
+            pred = torch.cat([x_pred, y_pred], dim=1)
+            full_state_loss = self.compute_loss(data, pred)
+            ssim_value = calculate_ssim_series(data, pred)
+            psnr_value = calculate_psnr_series(data, pred)
         self.log('test/mse', full_state_loss)
+        self.log('test/ssim', ssim_value)
+        self.log('test/psnr', psnr_value)
         return full_state_loss
 
     def predict_step(self, batch, batch_idx):

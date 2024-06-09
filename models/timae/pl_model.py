@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.timae import TimeSeriesMaskedAutoencoder
 from models.autoencoder.pl_model import LitAutoEncoder
+from models.common import calculate_ssim_series, calculate_psnr_series
 from data.dataset import ShallowWaterDataset
 
 
@@ -73,9 +74,13 @@ class LitTiMAE(pl.LightningModule):
             z1 = self.model.autoencoder.encode(data)
             pred, z2 = self.model(x, mask)
             loss, full_state_loss, latent_loss = self.compute_loss(data, pred, z1, z2)
+            ssim_value = calculate_ssim_series(data, pred)
+            psnr_value = calculate_psnr_series(data, pred)
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
         self.log('test/latent_mse', latent_loss)
+        self.log('test/ssim', ssim_value)
+        self.log('test/psnr', psnr_value)
         return loss
 
     def predict_step(self, batch, batch_idx):
