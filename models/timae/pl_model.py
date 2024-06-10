@@ -25,7 +25,7 @@ class LitTiMAE(pl.LightningModule):
         self.visulise_num = 5
 
         # load pretrained autoencoder
-        state_dict = LitAutoEncoder.load_from_checkpoint('logs/autoencoder/lightning_logs/prod/checkpoints/epoch=49-step=14950.ckpt').model.state_dict()
+        state_dict = LitAutoEncoder.load_from_checkpoint('logs/autoencoder/lightning_logs/prod/checkpoints/autoencoder.ckpt').model.state_dict()
         self.model.autoencoder.load_state_dict(state_dict)
         # freeze autoencoder
         for param in self.model.autoencoder.parameters():

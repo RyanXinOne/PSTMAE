@@ -18,7 +18,7 @@ def main():
     test_loader = DataLoader(test_dataset, 32, shuffle=True)
 
     trainer = pl.Trainer(
-        max_epochs=50,
+        max_epochs=20,
         logger=True,
         log_every_n_steps=10,
         enable_checkpointing=True,
