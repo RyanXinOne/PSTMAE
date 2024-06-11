@@ -11,7 +11,7 @@ from data.dataset import ShallowWaterDataset
 class LitAutoEncoder(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = SeqConvAutoEncoder(input_dim=3, latent_dim=512)
+        self.model = SeqConvAutoEncoder(input_dim=3, latent_dim=128)
         self.visualise_num = 5
 
     def configure_optimizers(self):

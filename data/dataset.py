@@ -14,7 +14,7 @@ class ShallowWaterDataset(Dataset):
         super().__init__()
         if split not in ['train', 'val', 'test']:
             raise ValueError("Invalid split.")
-        self.path = f'D:/Datasets/ShallowWater-simulation/{split}'
+        self.path = f'/homes/yx723/bucket/Datasets/ShallowWater-simulation/{split}'
         self.files = os.listdir(self.path)
         self.sequence_steps = sequence_steps
         self.forecast_steps = forecast_steps
@@ -22,19 +22,17 @@ class ShallowWaterDataset(Dataset):
         self.flatten = flatten
 
         # compute min and max values of h, u, v for normalisation
-        self.min_vals = np.array([np.inf, np.inf, np.inf]).reshape(1, 3, 1, 1)
-        self.max_vals = np.array([-np.inf, -np.inf, -np.inf]).reshape(1, 3, 1, 1)
-        self.file_data = []
-        for file in self.files:
-            file_path = os.path.join(self.path, file)
-            data = np.load(file_path)
-            self.min_vals = np.minimum(self.min_vals, data.min(axis=(0, 2, 3), keepdims=True))
-            self.max_vals = np.maximum(self.max_vals, data.max(axis=(0, 2, 3), keepdims=True))
-            self.file_data.append(data)
+        self.min_vals = np.array([0.70, -0.16, -0.16]).reshape(1, 3, 1, 1)
+        self.max_vals = np.array([1.23, 0.16, 0.16]).reshape(1, 3, 1, 1)
+        # for file in self.files:
+        #     file_path = os.path.join(self.path, file)
+        #     data = np.load(file_path)
+        #     self.min_vals = np.minimum(self.min_vals, data.min(axis=(0, 2, 3), keepdims=True))
+        #     self.max_vals = np.maximum(self.max_vals, data.max(axis=(0, 2, 3), keepdims=True))
 
         # calculate number of sequences
-        self.sequence_num_per_file = self.file_data[0].shape[0] - self.sequence_steps + 1
-        self.sequence_num = self.sequence_num_per_file * len(self.file_data)
+        self.sequence_num_per_file = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.sequence_steps + 1
+        self.sequence_num = self.sequence_num_per_file * len(self.files)
 
     def __len__(self):
         return self.sequence_num
@@ -42,7 +40,7 @@ class ShallowWaterDataset(Dataset):
     def __getitem__(self, idx):
         file_idx = idx // self.sequence_num_per_file
         seq_start_idx = idx % self.sequence_num_per_file
-        data = self.file_data[file_idx][seq_start_idx: seq_start_idx + self.sequence_steps]
+        data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps]
 
         data = self.normalise(data)
 
@@ -63,7 +61,8 @@ class ShallowWaterDataset(Dataset):
         '''
         Normalise a sequence of data with shape (seq_len, n_channels, height, width)
         '''
-        return (data - self.min_vals) / (self.max_vals - self.min_vals)
+        data = (data - self.min_vals) / (self.max_vals - self.min_vals)
+        return data
 
     @staticmethod
     def visualise_sequence(data, vmin=None, vmax=None, save_path=None):
