@@ -34,7 +34,7 @@ class LitTiMAE(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.RAdam(
             self.parameters(),
-            lr=1e-3,
+            lr=1e-4,
             weight_decay=1e-2)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
             optimizer,
@@ -53,6 +53,7 @@ class LitTiMAE(pl.LightningModule):
         self.log('train/mse', full_state_loss)
         self.log('train/latent_mse', latent_loss)
         self.log('train/lr', self.trainer.optimizers[0].param_groups[0]['lr'])
+        loss = torch.nan_to_num(loss, nan=10.0, posinf=10.0, neginf=10.0)
         return loss
 
     def validation_step(self, batch, batch_idx):

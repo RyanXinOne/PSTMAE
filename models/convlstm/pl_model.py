@@ -21,10 +21,12 @@ class LitConvLSTM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
 
-        x_pred, y_pred = self.model(x, y)
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+
+        x_pred, y_pred = self.model(x_int, y)
         loss = self.compute_loss(
             torch.cat([x, y], dim=1),
             torch.cat([x_pred, y_pred], dim=1),
@@ -34,11 +36,13 @@ class LitConvLSTM(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             loss = self.compute_loss(
                 torch.cat([x, y], dim=1),
                 torch.cat([x_pred, y_pred], dim=1),
@@ -48,12 +52,14 @@ class LitConvLSTM(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
         data = torch.cat([x, y], dim=1)
 
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             pred = torch.cat([x_pred, y_pred], dim=1)
             loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
@@ -65,14 +71,16 @@ class LitConvLSTM(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
 
         batch_size = len(x)
         os.makedirs('logs/convlstm/output', exist_ok=True)
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i

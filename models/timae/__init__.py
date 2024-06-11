@@ -71,7 +71,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         self.norm = nn.LayerNorm(latent_dim)
         self.decoder_embed = nn.Linear(latent_dim, latent_dim)
 
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, latent_dim))
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, latent_dim), requires_grad=False)
 
         # initialise MAE decoder
         self.decoder_blocks = nn.ModuleList([
@@ -90,7 +90,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         self.initialize_weights()
 
     def initialize_weights(self):
-        nn.init.xavier_normal_(self.mask_token)
+        # nn.init.xavier_normal_(self.mask_token)
 
         # initialize nn.Linear and nn.LayerNorm
         for m in self.modules():

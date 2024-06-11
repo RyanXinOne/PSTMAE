@@ -30,10 +30,12 @@ class LitConvRAE(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         self.model.autoencoder.eval()
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
 
-        x_pred, y_pred, zx_1, zx_2, zy_1, zy_2 = self.model(x, y)
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+
+        x_pred, y_pred, zx_1, zx_2, zy_1, zy_2 = self.model(x_int, y)
         loss, full_state_loss, latent_loss = self.compute_loss(
             torch.cat([x, y], dim=1),
             torch.cat([x_pred, y_pred], dim=1),
@@ -47,11 +49,13 @@ class LitConvRAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             full_state_loss = self.compute_loss(
                 torch.cat([x, y], dim=1),
                 torch.cat([x_pred, y_pred], dim=1),
@@ -61,12 +65,14 @@ class LitConvRAE(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
         data = torch.cat([x, y], dim=1)
 
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             pred = torch.cat([x_pred, y_pred], dim=1)
             full_state_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
@@ -78,14 +84,16 @@ class LitConvRAE(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         x, y, mask = batch
-        for i in range(len(x)):
-            x[i] = ShallowWaterDataset.interpolate(x[i], mask[i])
+
+        x_int = x.clone()
+        for i in range(len(x_int)):
+            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
 
         batch_size = len(x)
         os.makedirs('logs/convrae/output', exist_ok=True)
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x, self.forecast_steps)
+            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i
