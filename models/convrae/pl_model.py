@@ -30,17 +30,19 @@ class LitConvRAE(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         self.model.autoencoder.eval()
         x, y, mask = batch
+        data = torch.cat([x, y], dim=1)
+        z1 = self.model.autoencoder.encode(data)
 
         x_int = x.clone()
         for i in range(len(x_int)):
             x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
 
-        x_pred, y_pred, zx_1, zx_2, zy_1, zy_2 = self.model(x_int, y)
+        x_pred, y_pred, zx_pred, zy_pred = self.model(x_int, y)
         loss, full_state_loss, latent_loss = self.compute_loss(
-            torch.cat([x, y], dim=1),
+            data,
             torch.cat([x_pred, y_pred], dim=1),
-            torch.cat([zx_1, zy_1], dim=1),
-            torch.cat([zx_2, zy_2], dim=1),
+            z1,
+            torch.cat([zx_pred, zy_pred], dim=1),
         )
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)

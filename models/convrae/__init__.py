@@ -26,25 +26,21 @@ class ConvRAE(nn.Module):
         # image space -> latent space
         zx = self.autoencoder.encode(x)
         zy = self.autoencoder.encode(y)
-        zx_1 = zx.clone()
-        zy_1 = zy.clone()
 
         # encode input sequence
         zx_pred, hidden_state = self.encoder(zx)
         zx_pred = self.proj_e(zx_pred)
-        zx_2 = zx_pred.clone()
 
         # forecast future sequence by teacher forcing
         zy_input = torch.cat([zx[:, -1:], zy[:, :-1]], dim=1)
         zy_pred, _ = self.forecaster(zy_input, hidden_state)
         zy_pred = self.proj_f(zy_pred)
-        zy_2 = zy_pred.clone()
 
         # latent space -> image space
         x_pred = self.autoencoder.decode(zx_pred)
         y_pred = self.autoencoder.decode(zy_pred)
 
-        return x_pred, y_pred, zx_1, zx_2, zy_1, zy_2
+        return x_pred, y_pred, zx_pred, zy_pred
 
     def predict(self, x, forecast_steps):
         '''
@@ -80,8 +76,8 @@ if __name__ == '__main__':
 
     x = torch.randn(5, 10, 3, 64, 64)
     y = torch.randn(5, 5, 3, 64, 64)
-    x_pred, y_pred, zx_1, zx_2, zy_1, zy_2 = model(x, y)
-    print(x_pred.shape, zx_1.shape, zx_2.shape)
-    print(y_pred.shape, zy_1.shape, zy_2.shape)
+    x_pred, y_pred, zx_pred, zy_pred = model(x, y)
+    print(x_pred.shape, zx_pred.shape)
+    print(y_pred.shape, zy_pred.shape)
     x_pred, y_pred = model.predict(x, 5)
     print(x_pred.shape, y_pred.shape)
