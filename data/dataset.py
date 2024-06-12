@@ -10,7 +10,7 @@ class ShallowWaterDataset(Dataset):
     Dataset for Shallow Water simulation data.
     '''
 
-    def __init__(self, split, sequence_steps=10, forecast_steps=5, masking_steps=2, flatten=False):
+    def __init__(self, split, sequence_steps=15, forecast_steps=5, masking_steps=5, flatten=False):
         super().__init__()
         if split not in ['train', 'val', 'test']:
             raise ValueError("Invalid split.")
@@ -146,7 +146,7 @@ class ShallowWaterDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = ShallowWaterDataset(split='train', forecast_steps=5, masking_steps=2)
+    dataset = ShallowWaterDataset(split='train')
     print(len(dataset))  # size
     print(dataset.min_vals.squeeze())
     print(dataset.max_vals.squeeze())
