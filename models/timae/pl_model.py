@@ -14,8 +14,8 @@ class LitTiMAE(pl.LightningModule):
         super().__init__()
         self.model = TimeSeriesMaskedAutoencoder(
             input_dim=3,
-            latent_dim=512,
-            hidden_dim=1024,
+            latent_dim=128,
+            hidden_dim=512,
             encoder_num_heads=2,
             encoder_depth=6,
             decoder_num_heads=2,

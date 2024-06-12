@@ -13,9 +13,9 @@ def main():
     val_dataset = ShallowWaterDataset(split='val')
     test_dataset = ShallowWaterDataset(split='test')
 
-    train_loader = DataLoader(train_dataset, 32, shuffle=True)
-    val_loader = DataLoader(val_dataset, 32)
-    test_loader = DataLoader(test_dataset, 32, shuffle=True)
+    train_loader = DataLoader(train_dataset, 32, shuffle=True, num_workers=5)
+    val_loader = DataLoader(val_dataset, 32, num_workers=5)
+    test_loader = DataLoader(test_dataset, 32, shuffle=True, num_workers=5)
 
     trainer = pl.Trainer(
         max_epochs=40,

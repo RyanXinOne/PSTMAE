@@ -12,7 +12,7 @@ from data.dataset import ShallowWaterDataset
 class LitConvRAE(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = ConvRAE(input_dim=3, latent_dim=512, hidden_dim=512)
+        self.model = ConvRAE(input_dim=3, latent_dim=128, hidden_dim=128)
         self.forecast_steps = 5
         self.visualise_num = 5
 
