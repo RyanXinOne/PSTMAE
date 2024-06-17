@@ -1,21 +1,23 @@
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.convlstm.pl_model import LitConvLSTM
-from data.dataset import ShallowWaterDataset
+from data.dataset import DiffusionReactionDataset
 
 
 def main():
     model = LitConvLSTM()
     summary(model.model)
 
-    train_dataset = ShallowWaterDataset(split='train')
-    val_dataset = ShallowWaterDataset(split='val')
-    test_dataset = ShallowWaterDataset(split='test')
+    dataset = DiffusionReactionDataset()
+    train_size = int(0.9 * len(dataset))
+    val_size = int(0.05 * len(dataset))
+    test_size = len(dataset) - train_size - val_size
+    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-    train_loader = DataLoader(train_dataset, 32, shuffle=True, num_workers=5)
-    val_loader = DataLoader(val_dataset, 32, num_workers=5)
-    test_loader = DataLoader(test_dataset, 32, shuffle=True, num_workers=5)
+    train_loader = DataLoader(train_dataset, 32, num_workers=6, persistent_workers=True)
+    val_loader = DataLoader(val_dataset, 32, num_workers=4)
+    test_loader = DataLoader(test_dataset, 32, num_workers=4)
 
     trainer = pl.Trainer(
         max_epochs=20,

@@ -4,32 +4,26 @@ from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.timae import TimeSeriesMaskedAutoencoder
-from models.autoencoder.pl_model import LitAutoEncoder
-from models.common import calculate_ssim_series, calculate_psnr_series
-from data.dataset import ShallowWaterDataset
+from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr_series
 
 
 class LitTiMAE(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = TimeSeriesMaskedAutoencoder(
-            input_dim=3,
+            input_dim=2,
             latent_dim=128,
             hidden_dim=512,
             encoder_num_heads=2,
-            encoder_depth=6,
+            encoder_depth=4,
             decoder_num_heads=2,
-            decoder_depth=2,
+            decoder_depth=1,
             forecast_steps=5
         )
         self.visulise_num = 5
 
         # load pretrained autoencoder
-        state_dict = LitAutoEncoder.load_from_checkpoint('logs/autoencoder/lightning_logs/prod/checkpoints/autoencoder.ckpt').model.state_dict()
-        self.model.autoencoder.load_state_dict(state_dict)
-        # freeze autoencoder
-        for param in self.model.autoencoder.parameters():
-            param.requires_grad = False
+        self.model.autoencoder.load_pretrained_freeze()
 
     def configure_optimizers(self):
         optimizer = optim.RAdam(
@@ -43,7 +37,6 @@ class LitTiMAE(pl.LightningModule):
         return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):
-        self.model.autoencoder.eval()
         x, y, mask = batch
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
@@ -100,9 +93,9 @@ class LitTiMAE(pl.LightningModule):
             input_ = torch.cat([x[i], y[i]], dim=0)
             output = pred[i]
             diff = torch.abs(input_ - output)
-            ShallowWaterDataset.visualise_sequence(input_, save_path=f'logs/timae/output/input_{vi}.png')
-            ShallowWaterDataset.visualise_sequence(output, save_path=f'logs/timae/output/predict_{vi}.png')
-            ShallowWaterDataset.visualise_sequence(diff, save_path=f'logs/timae/output/diff_{vi}.png')
+            visualise_sequence(input_, save_path=f'logs/timae/output/input_{vi}.png')
+            visualise_sequence(output, save_path=f'logs/timae/output/predict_{vi}.png')
+            visualise_sequence(diff, save_path=f'logs/timae/output/diff_{vi}.png')
         return pred
 
     def compute_loss(self, x, pred, z1=None, z2=None):

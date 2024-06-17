@@ -4,14 +4,13 @@ from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convlstm import ConvLSTMForecaster
-from models.common import calculate_ssim_series, calculate_psnr_series
-from data.dataset import ShallowWaterDataset
+from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
 
 
 class LitConvLSTM(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = ConvLSTMForecaster(input_dim=3, hidden_dim=3, kernel_size=3, num_layers=1)
+        self.model = ConvLSTMForecaster(input_dim=2, hidden_dim=2, kernel_size=3, num_layers=1)
         self.forecast_steps = 5
         self.visualise_num = 5
 
@@ -24,7 +23,7 @@ class LitConvLSTM(pl.LightningModule):
 
         x_int = x.clone()
         for i in range(len(x_int)):
-            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+            x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         x_pred, y_pred = self.model(x_int, y)
         loss = self.compute_loss(
@@ -39,7 +38,7 @@ class LitConvLSTM(pl.LightningModule):
 
         x_int = x.clone()
         for i in range(len(x_int)):
-            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+            x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
@@ -56,7 +55,7 @@ class LitConvLSTM(pl.LightningModule):
 
         x_int = x.clone()
         for i in range(len(x_int)):
-            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+            x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
@@ -74,7 +73,7 @@ class LitConvLSTM(pl.LightningModule):
 
         x_int = x.clone()
         for i in range(len(x_int)):
-            x_int[i] = ShallowWaterDataset.interpolate(x_int[i], mask[i])
+            x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         batch_size = len(x)
         os.makedirs('logs/convlstm/output', exist_ok=True)
@@ -89,9 +88,9 @@ class LitConvLSTM(pl.LightningModule):
             input_ = torch.cat([x[i], y[i]], dim=0)
             output = torch.cat([x_pred[i], y_pred[i]], dim=0)
             diff = torch.abs(input_ - output)
-            ShallowWaterDataset.visualise_sequence(input_, save_path=f'logs/convlstm/output/input_{vi}.png')
-            ShallowWaterDataset.visualise_sequence(output, save_path=f'logs/convlstm/output/predict_{vi}.png')
-            ShallowWaterDataset.visualise_sequence(diff, save_path=f'logs/convlstm/output/diff_{vi}.png')
+            visualise_sequence(input_, save_path=f'logs/convlstm/output/input_{vi}.png')
+            visualise_sequence(output, save_path=f'logs/convlstm/output/predict_{vi}.png')
+            visualise_sequence(diff, save_path=f'logs/convlstm/output/diff_{vi}.png')
         return y_pred
 
     def compute_loss(self, x, pred):
