@@ -64,19 +64,20 @@ class DiffusionReactionDataset(Dataset):
     Dataset for 2D diffusion reaction data from PEDBench.
     '''
 
-    def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5):
+    def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5, dilation=4):
         super().__init__()
         self.path = '/homes/yx723/b/Datasets/2d-diffusion-reaction/2D_diff-react_NA_NA.h5'
         self.sequence_steps = sequence_steps
         self.forecast_steps = forecast_steps
         self.masking_steps = masking_steps
+        self.dilation = dilation
         self.h5file = h5py.File(self.path, 'r')
         self.names = list(self.h5file.keys())
 
         self.min_vals = np.array([-0.74, -0.40]).reshape(1, 1, 1, 2)
         self.max_vals = np.array([0.74, 0.34]).reshape(1, 1, 1, 2)
 
-        self.unit_seuqence_num = (self.h5file[f'{self.names[0]}/data'].shape[0] - 1) - self.sequence_steps + 1
+        self.unit_seuqence_num = (self.h5file[f'{self.names[0]}/data'].shape[0] - 1) - self.dilation * (self.sequence_steps - 1)
         self.total_sequence_num = self.unit_seuqence_num * len(self.names)
 
     def __len__(self):
@@ -85,7 +86,7 @@ class DiffusionReactionDataset(Dataset):
     def __getitem__(self, index):
         batch_idx = index // self.unit_seuqence_num
         seq_start_idx = index % self.unit_seuqence_num + 1
-        data = self.h5file[f'{self.names[batch_idx]}/data'][seq_start_idx: seq_start_idx + self.sequence_steps]
+        data = self.h5file[f'{self.names[batch_idx]}/data'][seq_start_idx: seq_start_idx + self.sequence_steps * self.dilation: self.dilation]
 
         data = normalise(data, self.min_vals, self.max_vals)
         data = torch.from_numpy(data).float().permute(0, 3, 1, 2)
@@ -118,6 +119,6 @@ if __name__ == '__main__':
     print(mask)
 
     from data.utils import interpolate_sequence, visualise_sequence
+    visualise_sequence(x, save_path='../sequence.png')
     x_int = interpolate_sequence(x, mask)
     print((x - x_int).numpy().max(axis=(1, 2, 3)))
-    visualise_sequence(torch.cat([x], dim=0), save_path='../interpolation.png')

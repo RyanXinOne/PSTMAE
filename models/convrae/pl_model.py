@@ -18,7 +18,7 @@ class LitConvRAE(pl.LightningModule):
         self.model.autoencoder.load_pretrained_freeze()
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
+        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=0)
         return optimizer
 
     def training_step(self, batch, batch_idx):
