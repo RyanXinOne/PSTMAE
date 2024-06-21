@@ -2,14 +2,14 @@ from torch.utils.data import DataLoader, random_split
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.timae.pl_model import LitTiMAE
-from data.dataset import DiffusionReactionDataset
+from data.dataset import CompressibleNavierStokesDataset
 
 
 def main():
     model = LitTiMAE()
     summary(model.model)
 
-    dataset = DiffusionReactionDataset()
+    dataset = CompressibleNavierStokesDataset()
     train_size = int(0.9 * len(dataset))
     val_size = int(0.05 * len(dataset))
     test_size = len(dataset) - train_size - val_size

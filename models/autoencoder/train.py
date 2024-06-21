@@ -1,7 +1,7 @@
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.autoencoder.pl_model import LitAutoEncoder
-from data.dataset import DiffusionReactionDataset
+from data.dataset import CompressibleNavierStokesDataset
 from torch.utils.data import DataLoader, random_split
 
 
@@ -9,15 +9,15 @@ def main():
     model = LitAutoEncoder()
     summary(model.model)
 
-    dataset = DiffusionReactionDataset(sequence_steps=10, forecast_steps=0, masking_steps=0)
+    dataset = CompressibleNavierStokesDataset(sequence_steps=1, forecast_steps=0, masking_steps=0)
     train_size = int(0.9 * len(dataset))
     val_size = int(0.05 * len(dataset))
     test_size = len(dataset) - train_size - val_size
     train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-    train_loader = DataLoader(train_dataset, 32, num_workers=6, persistent_workers=True)
-    val_loader = DataLoader(val_dataset, 32, num_workers=4)
-    test_loader = DataLoader(test_dataset, 32, num_workers=4)
+    train_loader = DataLoader(train_dataset, 64, num_workers=4, persistent_workers=True)
+    val_loader = DataLoader(val_dataset, 64, num_workers=2)
+    test_loader = DataLoader(test_dataset, 64, num_workers=2)
 
     trainer = pl.Trainer(
         max_epochs=50,

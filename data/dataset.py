@@ -101,18 +101,51 @@ class DiffusionReactionDataset(Dataset):
         return x, y, mask
 
 
-if __name__ == '__main__':
-    ### ShallowWater
-    # dataset = ShallowWaterDataset(split='train')
-    # print(len(dataset))  # size
-    # print(dataset.min_vals.squeeze())
-    # print(dataset.max_vals.squeeze())
-    # x, y, mask = dataset[-1]
-    # print(x.shape, y.shape)
-    # print(mask)
+class CompressibleNavierStokesDataset(Dataset):
+    '''
+    Dataset for compressible Navier-Stokes data from PEDBench.
+    '''
 
-    ### 2d diffusion reaction
-    dataset = DiffusionReactionDataset()
+    def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5):
+        super().__init__()
+        self.path = '/homes/yx723/b/Datasets/2d-cfd/2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train/'
+        self.files = os.listdir(self.path)
+        self.sequence_steps = sequence_steps
+        self.forecast_steps = forecast_steps
+        self.masking_steps = masking_steps
+
+        self.min_vals = np.array([-1.56, -1.56, 0.0, 0.0]).reshape(1, 4, 1, 1)
+        self.max_vals = np.array([1.56, 1.56, 39.8, 163.1]).reshape(1, 4, 1, 1)
+
+        self.unit_seuqence_num = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.sequence_steps + 1
+        self.total_sequence_num = self.unit_seuqence_num * len(self.files)
+
+    def __len__(self):
+        return self.total_sequence_num
+
+    def __getitem__(self, index):
+        file_idx = index // self.unit_seuqence_num
+        seq_start_idx = index % self.unit_seuqence_num
+
+        data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps]
+
+        data = normalise(data, self.min_vals, self.max_vals)
+        data = torch.from_numpy(data).float()
+
+        x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
+
+        # generate random mask
+        mask = torch.zeros(x.size(0))
+        mask_idx = np.random.choice(x.size(0), self.masking_steps, replace=False)
+        mask[mask_idx] = 1
+
+        return x, y, mask
+
+
+if __name__ == '__main__':
+    # dataset = ShallowWaterDataset(split='train')
+    # dataset = DiffusionReactionDataset()
+    dataset = CompressibleNavierStokesDataset()
     print(len(dataset))
     x, y, mask = dataset[0]
     print(x.shape, y.shape)
