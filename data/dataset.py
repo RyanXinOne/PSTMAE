@@ -114,8 +114,14 @@ class CompressibleNavierStokesDataset(Dataset):
         self.forecast_steps = forecast_steps
         self.masking_steps = masking_steps
 
-        self.min_vals = np.array([-1.56, -1.56, 0.0, 0.0]).reshape(1, 4, 1, 1)
-        self.max_vals = np.array([1.56, 1.56, 39.8, 163.1]).reshape(1, 4, 1, 1)
+        if '2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train' in self.path:
+            self.min_vals = np.array([-1.56, -1.56, 0.0, 0.0]).reshape(1, 4, 1, 1)
+            self.max_vals = np.array([1.56, 1.56, 39.8, 163.1]).reshape(1, 4, 1, 1)
+        elif '2D_CFD_Rand_M1.0_Eta0.01_Zeta0.01_periodic_128_Train' in self.path:
+            self.min_vals = np.array([-15.60, -15.60, 0.0, 0.0]).reshape(1, 4, 1, 1)
+            self.max_vals = np.array([15.60, 15.60, 42.31, 715.92]).reshape(1, 4, 1, 1)
+        else:
+            raise ValueError("Unsupported dataset path.")
 
         self.unit_seuqence_num = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.sequence_steps + 1
         self.total_sequence_num = self.unit_seuqence_num * len(self.files)
