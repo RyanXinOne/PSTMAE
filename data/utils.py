@@ -3,6 +3,20 @@ from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 import matplotlib.pyplot as plt
 
 
+def generate_random_mask(seq_len, masking_steps):
+    '''
+    Generate a random mask for a sequence of data. 0 is observed, 1 is missing.
+
+    Args:
+        seq_len: int, the length of the sequence.
+        masking_steps: int, the number of steps to mask.
+    '''
+    mask = np.zeros(seq_len)
+    mask_idx = np.random.choice(seq_len, masking_steps, replace=False)
+    mask[mask_idx] = 1
+    return mask
+
+
 def normalise(data, min_vals, max_vals):
     '''
     Normalise data into the range [0, 1].
@@ -22,7 +36,7 @@ def visualise_sequence(data, vmin=None, vmax=None, save_path=None):
     min_val = data.min(axis=(0, 2, 3)) if vmin is None else vmin
     max_val = data.max(axis=(0, 2, 3)) if vmax is None else vmax
 
-    fig, axs = plt.subplots(n_channels, seq_len, figsize=(seq_len, n_channels))
+    fig, axs = plt.subplots(n_channels, seq_len, squeeze=False, figsize=(seq_len, n_channels))
     for i in range(n_channels):
         for j in range(seq_len):
             axs[i, j].imshow(data[j, i], vmin=min_val[i], vmax=max_val[i])

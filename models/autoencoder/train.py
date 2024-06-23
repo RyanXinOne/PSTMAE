@@ -1,8 +1,8 @@
+from torch.utils.data import DataLoader
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.autoencoder.pl_model import LitAutoEncoder
 from data.dataset import ShallowWaterDataset
-from torch.utils.data import DataLoader
 
 
 def main():
