@@ -54,7 +54,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         self.autoencoder = SeqConvAutoEncoder(input_dim=input_dim, latent_dim=latent_dim)
 
         # prepare positional encoder
-        self.pos_encoder = PositionalEncoding(latent_dim, scaler=1.0)
+        self.pos_encoder = PositionalEncoding(latent_dim, scaler=0.1)
 
         # initialise MAE encoder
         self.blocks = nn.ModuleList([
@@ -68,10 +68,10 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
                 norm_first=True,
             ) for _ in range(encoder_depth)
         ])
-        # self.norm = nn.LayerNorm(latent_dim)
+        self.norm = nn.LayerNorm(latent_dim)
         self.decoder_embed = nn.Linear(latent_dim, latent_dim)
 
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, latent_dim), requires_grad=True)
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, latent_dim), requires_grad=False)
 
         # initialise MAE decoder
         self.decoder_blocks = nn.ModuleList([
@@ -85,12 +85,12 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
                 norm_first=True,
             ) for _ in range(decoder_depth)
         ])
-        # self.decoder_norm = nn.LayerNorm(latent_dim)
+        self.decoder_norm = nn.LayerNorm(latent_dim)
 
         self.initialize_weights()
 
     def initialize_weights(self):
-        nn.init.xavier_normal_(self.mask_token)
+        # nn.init.xavier_normal_(self.mask_token)
 
         # initialize nn.Linear and nn.LayerNorm
         for m in self.modules():
@@ -134,7 +134,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         # apply Transformer blocks
         for blk in self.blocks:
             x = blk(x)
-        # x = self.norm(x)
+        x = self.norm(x)
 
         return x, ids_restore
 
@@ -153,7 +153,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
         # apply Transformer blocks
         for blk in self.decoder_blocks:
             x = blk(x)
-        # x = self.decoder_norm(x)
+        x = self.decoder_norm(x)
 
         return x
 
@@ -166,7 +166,7 @@ class TimeSeriesMaskedAutoencoder(nn.Module):
 
 
 if __name__ == '__main__':
-    x = torch.rand((2, 5, 3, 128, 128))
+    x = torch.rand((2, 5, 3, 64, 64))
     mask = torch.tensor([[1, 0, 1, 0, 0],
                          [0, 0, 1, 1, 0]]).float()
 

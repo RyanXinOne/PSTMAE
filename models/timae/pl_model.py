@@ -11,13 +11,13 @@ class LitTiMAE(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = TimeSeriesMaskedAutoencoder(
-            input_dim=4,
+            input_dim=3,
             latent_dim=128,
-            hidden_dim=256,
+            hidden_dim=512,
             encoder_num_heads=2,
-            encoder_depth=4,
+            encoder_depth=6,
             decoder_num_heads=2,
-            decoder_depth=1,
+            decoder_depth=2,
             forecast_steps=5
         )
         self.visulise_num = 5
@@ -28,12 +28,12 @@ class LitTiMAE(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.RAdam(
             self.parameters(),
-            lr=3e-4,
-            weight_decay=0)
+            lr=1e-4,
+            weight_decay=1e-2)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
             optimizer,
             T_max=10,
-            eta_min=3e-4)
+            eta_min=1e-4)
         return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):

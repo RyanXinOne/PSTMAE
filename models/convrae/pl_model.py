@@ -10,7 +10,7 @@ from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_
 class LitConvRAE(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = ConvRAE(input_dim=4, latent_dim=128, hidden_dim=128)
+        self.model = ConvRAE(input_dim=3, latent_dim=128, hidden_dim=128)
         self.forecast_steps = 5
         self.visualise_num = 5
 
@@ -18,7 +18,7 @@ class LitConvRAE(pl.LightningModule):
         self.model.autoencoder.load_pretrained_freeze()
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=0)
+        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
         return optimizer
 
     def training_step(self, batch, batch_idx):
