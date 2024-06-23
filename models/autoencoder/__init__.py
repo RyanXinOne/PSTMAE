@@ -46,7 +46,7 @@ class SeqConvAutoEncoder(nn.Module):
     def initialise_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.xavier_normal_(m.weight)
+                nn.init.kaiming_normal_(m.weight)
                 nn.init.zeros_(m.bias)
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
@@ -78,7 +78,7 @@ class SeqConvAutoEncoder(nn.Module):
         return x
 
     def load_pretrained_freeze(self):
-        pl_ckpt_path = 'logs/autoencoder/navier_stokes.ckpt'
+        pl_ckpt_path = 'logs/autoencoder/diffusion_reaction.ckpt'
         # load pretrained autoencoder
         state_dict = torch.load(pl_ckpt_path, map_location='cpu')['state_dict']
         # drop prefix

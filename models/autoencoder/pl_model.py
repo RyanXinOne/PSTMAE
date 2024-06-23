@@ -10,11 +10,11 @@ from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr
 class LitAutoEncoder(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = SeqConvAutoEncoder(input_dim=4, latent_dim=128)
+        self.model = SeqConvAutoEncoder(input_dim=2, latent_dim=128)
         self.visualise_num = 5
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
+        optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-4)
         return optimizer
 
     def training_step(self, batch, batch_idx):
@@ -69,5 +69,5 @@ class LitAutoEncoder(pl.LightningModule):
     def compute_loss(self, x, y, z):
         mse_loss = F.mse_loss(y, x)
         reg_loss = torch.mean(z**2)
-        loss = mse_loss + 1e-7 * reg_loss
+        loss = mse_loss + 0 * reg_loss
         return loss, mse_loss, reg_loss
