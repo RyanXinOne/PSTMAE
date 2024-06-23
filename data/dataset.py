@@ -3,7 +3,31 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from data.utils import normalise
+from data.utils import generate_random_mask, normalise
+
+
+class DummyDataset(Dataset):
+    '''
+    Dummy dataset for testing purposes.
+    '''
+
+    def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5):
+        super().__init__()
+        self.sequence_steps = sequence_steps
+        self.forecast_steps = forecast_steps
+        self.masking_steps = masking_steps
+
+    def __len__(self):
+        return 1000
+
+    def __getitem__(self, idx):
+        x = torch.rand(self.sequence_steps - self.forecast_steps, 1, 128, 128)
+        y = torch.rand(self.forecast_steps, 1, 128, 128)
+
+        mask = generate_random_mask(x.size(0), self.masking_steps)
+        mask = torch.from_numpy(mask).float()
+
+        return x, y, mask
 
 
 class ShallowWaterDataset(Dataset):
@@ -15,7 +39,7 @@ class ShallowWaterDataset(Dataset):
         super().__init__()
         if split not in ['train', 'val', 'test']:
             raise ValueError("Invalid split.")
-        self.path = f'/homes/yx723/bucket/Datasets/ShallowWater-simulation/{split}'
+        self.path = f'/homes/yx723/b/Datasets/ShallowWater-simulation/{split}'
         self.files = os.listdir(self.path)
         self.sequence_steps = sequence_steps
         self.forecast_steps = forecast_steps
@@ -44,17 +68,15 @@ class ShallowWaterDataset(Dataset):
         data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps]
 
         data = normalise(data, self.min_vals, self.max_vals)
-
         data = torch.from_numpy(data).float()
+
         if self.flatten:
             data = data.flatten(start_dim=1, end_dim=-1)
 
         x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
 
-        # generate random mask
-        mask = torch.zeros(x.size(0))
-        mask_idx = np.random.choice(x.size(0), self.masking_steps, replace=False)
-        mask[mask_idx] = 1
+        mask = generate_random_mask(x.size(0), self.masking_steps)
+        mask = torch.from_numpy(mask).float()
 
         return x, y, mask
 
@@ -93,10 +115,8 @@ class DiffusionReactionDataset(Dataset):
 
         x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
 
-        # generate random mask
-        mask = torch.zeros(x.size(0))
-        mask_idx = np.random.choice(x.size(0), self.masking_steps, replace=False)
-        mask[mask_idx] = 1
+        mask = generate_random_mask(x.size(0), self.masking_steps)
+        mask = torch.from_numpy(mask).float()
 
         return x, y, mask
 
@@ -140,18 +160,17 @@ class CompressibleNavierStokesDataset(Dataset):
 
         x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
 
-        # generate random mask
-        mask = torch.zeros(x.size(0))
-        mask_idx = np.random.choice(x.size(0), self.masking_steps, replace=False)
-        mask[mask_idx] = 1
+        mask = generate_random_mask(x.size(0), self.masking_steps)
+        mask = torch.from_numpy(mask).float()
 
         return x, y, mask
 
 
 if __name__ == '__main__':
+    # dataset = DummyDataset()
     # dataset = ShallowWaterDataset(split='train')
-    # dataset = DiffusionReactionDataset()
-    dataset = CompressibleNavierStokesDataset()
+    dataset = DiffusionReactionDataset()
+    # dataset = CompressibleNavierStokesDataset()
     print(len(dataset))
     x, y, mask = dataset[0]
     print(x.shape, y.shape)
