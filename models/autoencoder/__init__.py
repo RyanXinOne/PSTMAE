@@ -78,7 +78,7 @@ class SeqConvAutoEncoder(nn.Module):
         return x
 
     def load_pretrained_freeze(self):
-        pl_ckpt_path = 'logs/autoencoder/navier_stokes.ckpt'
+        pl_ckpt_path = 'logs/autoencoder/dummy.ckpt'
         # load pretrained autoencoder
         state_dict = torch.load(pl_ckpt_path, map_location='cpu')['state_dict']
         # drop prefix
