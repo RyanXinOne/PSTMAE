@@ -9,7 +9,7 @@ def main():
     model = LitAutoEncoder()
     summary(model.model)
 
-    dataset = DiffusionReactionDataset(sequence_steps=10, forecast_steps=0, masking_steps=0)
+    dataset = DiffusionReactionDataset(sequence_steps=10, forecast_steps=0, masking_steps=0, dilation=1)
     train_size = int(0.9 * len(dataset))
     val_size = int(0.05 * len(dataset))
     test_size = len(dataset) - train_size - val_size
