@@ -13,6 +13,8 @@ class LitTiKAN(pl.LightningModule):
         self.model = TiKAN(input_dim=1,
                            latent_dim=128,
                            hidden_dims=[64, 64],
+                           grid_size=5,
+                           spline_order=3,
                            input_steps=10,
                            forecast_steps=5)
         self.visualise_num = 5
