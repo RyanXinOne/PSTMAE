@@ -79,12 +79,13 @@ class SeqConvAutoEncoder(nn.Module):
 
     def load_pretrained_freeze(self):
         pl_ckpt_path = 'logs/autoencoder/diffusion_reaction.ckpt'
-        # load pretrained autoencoder
-        state_dict = torch.load(pl_ckpt_path, map_location='cpu')['state_dict']
-        # drop prefix
-        for key in list(state_dict):
-            state_dict[key.replace("model.", "")] = state_dict.pop(key)
-        self.load_state_dict(state_dict)
+        if pl_ckpt_path:
+            # load pretrained autoencoder
+            state_dict = torch.load(pl_ckpt_path, map_location='cpu')['state_dict']
+            # drop prefix
+            for key in list(state_dict):
+                state_dict[key.replace("model.", "")] = state_dict.pop(key)
+            self.load_state_dict(state_dict)
         # freeze autoencoder
         for param in self.parameters():
             param.requires_grad = False
