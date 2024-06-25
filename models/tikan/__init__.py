@@ -290,10 +290,12 @@ class KAN(torch.nn.Module):
 
 class TiKAN(nn.Module):
 
-    def __init__(self, input_dim, latent_dim, hidden_dims, input_steps, forecast_steps):
+    def __init__(self, input_dim, latent_dim, hidden_dims, grid_size, spline_order, input_steps, forecast_steps):
         super().__init__()
         self.autoencoder = SeqConvAutoEncoder(input_dim, latent_dim)
-        self.kan = KAN([input_steps*latent_dim, *hidden_dims, (input_steps+forecast_steps)*latent_dim])
+        self.kan = KAN(layers_hidden=[input_steps*latent_dim, *hidden_dims, (input_steps+forecast_steps)*latent_dim],
+                       grid_size=grid_size,
+                       spline_order=spline_order)
         self.latent_dim = latent_dim
         self.input_steps = input_steps
         self.forecast_steps = forecast_steps
@@ -308,7 +310,7 @@ class TiKAN(nn.Module):
 
 
 if __name__ == '__main__':
-    model = TiKAN(3, 128, [64, 64], 10, 5)
+    model = TiKAN(input_dim=3, latent_dim=128, hidden_dims=[64, 64], grid_size=5, spline_order=3, input_steps=10, forecast_steps=5)
     print(model)
 
     x = torch.randn(5, 10, 3, 128, 128)
