@@ -1,4 +1,4 @@
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.convlstm.pl_model import LitConvLSTM
@@ -9,13 +9,12 @@ def main():
     model = LitConvLSTM()
     summary(model.model)
 
-    train_dataset = ShallowWaterDataset(split='train')
-    val_dataset = ShallowWaterDataset(split='val')
-    test_dataset = ShallowWaterDataset(split='test')
+    dataset = ShallowWaterDataset(dilation=1)
+    train_dataset, val_dataset, test_dataset = random_split(dataset, [0.9, 0.05, 0.05])
 
-    train_loader = DataLoader(train_dataset, 32, shuffle=True, num_workers=5)
-    val_loader = DataLoader(val_dataset, 32, num_workers=5)
-    test_loader = DataLoader(test_dataset, 32, shuffle=True, num_workers=5)
+    train_loader = DataLoader(train_dataset, 32, num_workers=4, persistent_workers=True)
+    val_loader = DataLoader(val_dataset, 32, num_workers=2)
+    test_loader = DataLoader(test_dataset, 32, num_workers=2)
 
     trainer = pl.Trainer(
         max_epochs=20,
