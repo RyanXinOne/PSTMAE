@@ -18,6 +18,9 @@ class LitConvLSTM(pl.LightningModule):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
         return optimizer
 
+    def compute_loss(self, x, pred):
+        return F.mse_loss(pred, x)
+
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
 
@@ -92,6 +95,3 @@ class LitConvLSTM(pl.LightningModule):
             visualise_sequence(output, save_path=f'logs/convlstm/output/predict_{vi}.png')
             visualise_sequence(diff, save_path=f'logs/convlstm/output/diff_{vi}.png')
         return y_pred
-
-    def compute_loss(self, x, pred):
-        return F.mse_loss(pred, x)

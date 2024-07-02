@@ -56,14 +56,13 @@ class SeqConvAutoEncoder(nn.Module):
         '''
         input shape: (b, l, c, 64, 64)
         '''
-        if self.freezed:
-            self.eval()
-        x = self.encode(x)
-        z = x.clone()
-        x = self.decode(x)
+        z = self.encode(x)
+        x = self.decode(z)
         return x, z
 
     def encode(self, x):
+        if self.freezed:
+            self.eval()
         b, l, c, h, w = x.size()
         x = x.reshape(-1, c, h, w)
         z = self.encoder(x)
@@ -71,6 +70,8 @@ class SeqConvAutoEncoder(nn.Module):
         return z
 
     def decode(self, z):
+        if self.freezed:
+            self.eval()
         b, l, d = z.size()
         z = z.reshape(-1, d)
         x = self.decoder(z)
