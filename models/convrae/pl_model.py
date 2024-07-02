@@ -21,6 +21,16 @@ class LitConvRAE(pl.LightningModule):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
         return optimizer
 
+    def compute_loss(self, x, pred, z1=None, z2=None):
+        full_state_loss = F.mse_loss(pred, x)
+        if z1 is None or z2 is None:
+            return full_state_loss
+
+        latent_loss = F.mse_loss(z2, z1)
+
+        loss = full_state_loss / (torch.linalg.norm(x) / x.numel() + 1e-8) + latent_loss / (torch.linalg.norm(z1) / z1.numel() + 1e-8)
+        return loss, full_state_loss, latent_loss
+
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
         data = torch.cat([x, y], dim=1)
@@ -101,13 +111,3 @@ class LitConvRAE(pl.LightningModule):
             visualise_sequence(output, save_path=f'logs/convrae/output/predict_{vi}.png')
             visualise_sequence(diff, save_path=f'logs/convrae/output/diff_{vi}.png')
         return y_pred
-
-    def compute_loss(self, x, pred, z1=None, z2=None):
-        full_state_loss = F.mse_loss(pred, x)
-        if z1 is None or z2 is None:
-            return full_state_loss
-
-        latent_loss = F.mse_loss(z2, z1)
-
-        loss = full_state_loss / (torch.linalg.norm(x) / x.numel() + 1e-8) + latent_loss / (torch.linalg.norm(z1) / z1.numel() + 1e-8)
-        return loss, full_state_loss, latent_loss
