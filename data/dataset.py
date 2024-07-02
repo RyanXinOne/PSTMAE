@@ -35,28 +35,21 @@ class ShallowWaterDataset(Dataset):
     Dataset for Shallow Water simulation data.
     '''
 
-    def __init__(self, split, sequence_steps=15, forecast_steps=5, masking_steps=5, flatten=False):
+    def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5, dilation=1):
         super().__init__()
-        if split not in ['train', 'val', 'test']:
-            raise ValueError("Invalid split.")
-        self.path = f'/homes/yx723/b/Datasets/ShallowWater-simulation/{split}'
+        self.path = f'/homes/yx723/b/Datasets/ShallowWater-simulation/res128'
         self.files = os.listdir(self.path)
         self.sequence_steps = sequence_steps
         self.forecast_steps = forecast_steps
         self.masking_steps = masking_steps
-        self.flatten = flatten
+        self.dilation = dilation
 
         # compute min and max values of h, u, v for normalisation
-        self.min_vals = np.array([0.70, -0.16, -0.16]).reshape(1, 3, 1, 1)
-        self.max_vals = np.array([1.23, 0.16, 0.16]).reshape(1, 3, 1, 1)
-        # for file in self.files:
-        #     file_path = os.path.join(self.path, file)
-        #     data = np.load(file_path)
-        #     self.min_vals = np.minimum(self.min_vals, data.min(axis=(0, 2, 3), keepdims=True))
-        #     self.max_vals = np.maximum(self.max_vals, data.max(axis=(0, 2, 3), keepdims=True))
+        self.min_vals = np.array([0.66, -0.17, -0.17]).reshape(1, 3, 1, 1)
+        self.max_vals = np.array([1.20, 0.17, 0.17]).reshape(1, 3, 1, 1)
 
         # calculate number of sequences
-        self.sequence_num_per_file = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.sequence_steps + 1
+        self.sequence_num_per_file = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.dilation * (self.sequence_steps - 1)
         self.sequence_num = self.sequence_num_per_file * len(self.files)
 
     def __len__(self):
@@ -65,13 +58,10 @@ class ShallowWaterDataset(Dataset):
     def __getitem__(self, idx):
         file_idx = idx // self.sequence_num_per_file
         seq_start_idx = idx % self.sequence_num_per_file
-        data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps]
+        data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps * self.dilation: self.dilation]
 
         data = normalise(data, self.min_vals, self.max_vals)
         data = torch.from_numpy(data).float()
-
-        if self.flatten:
-            data = data.flatten(start_dim=1, end_dim=-1)
 
         x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
 
@@ -168,7 +158,7 @@ class CompressibleNavierStokesDataset(Dataset):
 
 if __name__ == '__main__':
     # dataset = DummyDataset()
-    # dataset = ShallowWaterDataset(split='train')
+    # dataset = ShallowWaterDataset()
     dataset = DiffusionReactionDataset()
     # dataset = CompressibleNavierStokesDataset()
     print(len(dataset))
