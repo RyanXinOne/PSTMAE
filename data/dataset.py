@@ -70,6 +70,22 @@ class ShallowWaterDataset(Dataset):
 
         return x, y, mask
 
+    @staticmethod
+    def calculate_total_energy(data, dx=0.01, g=1.0):
+        '''
+        Calculate total energy for the data of sequence.
+
+        Args:
+            data (torch.Tensor): sequence data with shape ([N,] Nt, C, H, W) and C = h, u, v.
+
+        Returns:
+            torch.Tensor: total energy with shape ([N,] Nt).
+        '''
+        kinetic_energy = 0.5 * (torch.sum(data[..., 1, :, :] ** 2, axis=(-2, -1)) + torch.sum(data[..., 2, :, :] ** 2, axis=(-2, -1))) * dx**2
+        potential_energy = torch.sum(0.5 * g * data[..., 0, :, :] ** 2, axis=(-2, -1)) * dx**2
+        total_energy = kinetic_energy + potential_energy
+        return total_energy
+
 
 class DiffusionReactionDataset(Dataset):
     '''
