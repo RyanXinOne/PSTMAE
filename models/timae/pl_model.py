@@ -36,14 +36,10 @@ class LitTiMAE(pl.LightningModule):
             eta_min=3e-4)
         return [optimizer], [scheduler]
 
-    def compute_loss(self, x, pred, z1=None, z2=None):
+    def compute_loss(self, x, pred, z1, z2):
         full_state_loss = F.mse_loss(pred, x)
-        if z1 is None or z2 is None:
-            return full_state_loss
-
         latent_loss = F.mse_loss(z2, z1)
-
-        loss = full_state_loss / (torch.linalg.norm(x) / x.numel() + 1e-8) + latent_loss / (torch.linalg.norm(z1) / z1.numel() + 1e-8)
+        loss = full_state_loss + 0.5 * latent_loss
         return loss, full_state_loss, latent_loss
 
     def training_step(self, batch, batch_idx):

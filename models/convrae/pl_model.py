@@ -24,11 +24,10 @@ class LitConvRAE(pl.LightningModule):
     def compute_loss(self, x, pred, z1=None, z2=None):
         full_state_loss = F.mse_loss(pred, x)
         if z1 is None or z2 is None:
-            return full_state_loss
-
-        latent_loss = F.mse_loss(z2, z1)
-
-        loss = full_state_loss / (torch.linalg.norm(x) / x.numel() + 1e-8) + latent_loss / (torch.linalg.norm(z1) / z1.numel() + 1e-8)
+            latent_loss = 0
+        else:
+            latent_loss = F.mse_loss(z2, z1)
+        loss = full_state_loss + 0.5 * latent_loss
         return loss, full_state_loss, latent_loss
 
     def training_step(self, batch, batch_idx):
@@ -61,7 +60,7 @@ class LitConvRAE(pl.LightningModule):
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
-            full_state_loss = self.compute_loss(
+            _, full_state_loss, _ = self.compute_loss(
                 torch.cat([x, y], dim=1),
                 torch.cat([x_pred, y_pred], dim=1),
             )
@@ -79,7 +78,7 @@ class LitConvRAE(pl.LightningModule):
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             pred = torch.cat([x_pred, y_pred], dim=1)
-            full_state_loss = self.compute_loss(data, pred)
+            _, full_state_loss, _ = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
         self.log('test/mse', full_state_loss)
