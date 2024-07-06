@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convlstm import ConvLSTMForecaster
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.dataset import ShallowWaterDataset
 
 
 class LitConvLSTM(pl.LightningModule):
@@ -19,7 +20,10 @@ class LitConvLSTM(pl.LightningModule):
         return optimizer
 
     def compute_loss(self, x, pred):
-        return F.mse_loss(pred, x)
+        full_state_loss = F.mse_loss(pred, x)
+        energy_loss = F.mse_loss(ShallowWaterDataset.calculate_total_energy(pred), ShallowWaterDataset.calculate_total_energy(x))
+        loss = full_state_loss + 0.1 * energy_loss
+        return loss, full_state_loss, energy_loss
 
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
@@ -29,11 +33,13 @@ class LitConvLSTM(pl.LightningModule):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         x_pred, y_pred = self.model(x_int, y)
-        loss = self.compute_loss(
+        loss, full_state_loss, energy_loss = self.compute_loss(
             torch.cat([x, y], dim=1),
             torch.cat([x_pred, y_pred], dim=1),
         )
-        self.log('train/mse', loss)
+        self.log('train/loss', loss)
+        self.log('train/mse', full_state_loss)
+        self.log('train/energy_mse', energy_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -45,11 +51,13 @@ class LitConvLSTM(pl.LightningModule):
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
-            loss = self.compute_loss(
+            loss, full_state_loss, energy_loss = self.compute_loss(
                 torch.cat([x, y], dim=1),
                 torch.cat([x_pred, y_pred], dim=1),
             )
-        self.log('val/mse', loss)
+        self.log('val/loss', loss)
+        self.log('val/mse', full_state_loss)
+        self.log('val/energy_mse', energy_loss)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -63,10 +71,12 @@ class LitConvLSTM(pl.LightningModule):
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             pred = torch.cat([x_pred, y_pred], dim=1)
-            loss = self.compute_loss(data, pred)
+            loss, full_state_loss, energy_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
-        self.log('test/mse', loss)
+        self.log('test/loss', loss)
+        self.log('test/mse', full_state_loss)
+        self.log('test/energy_mse', energy_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
         return loss

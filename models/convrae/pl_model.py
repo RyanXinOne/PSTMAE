@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convrae import ConvRAE
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.dataset import ShallowWaterDataset
 
 
 class LitConvRAE(pl.LightningModule):
@@ -27,8 +28,9 @@ class LitConvRAE(pl.LightningModule):
             latent_loss = 0
         else:
             latent_loss = F.mse_loss(z2, z1)
-        loss = full_state_loss + 0.5 * latent_loss
-        return loss, full_state_loss, latent_loss
+        energy_loss = F.mse_loss(ShallowWaterDataset.calculate_total_energy(pred), ShallowWaterDataset.calculate_total_energy(x))
+        loss = full_state_loss + 0.5 * latent_loss + 0.1 * energy_loss
+        return loss, full_state_loss, latent_loss, energy_loss
 
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
@@ -40,7 +42,7 @@ class LitConvRAE(pl.LightningModule):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         x_pred, y_pred, zx_pred, zy_pred = self.model(x_int, y)
-        loss, full_state_loss, latent_loss = self.compute_loss(
+        loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(
             data,
             torch.cat([x_pred, y_pred], dim=1),
             z1,
@@ -49,6 +51,7 @@ class LitConvRAE(pl.LightningModule):
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         self.log('train/latent_mse', latent_loss)
+        self.log('train/energy_mse', energy_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -60,11 +63,12 @@ class LitConvRAE(pl.LightningModule):
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
-            _, full_state_loss, _ = self.compute_loss(
+            _, full_state_loss, _, energy_loss = self.compute_loss(
                 torch.cat([x, y], dim=1),
                 torch.cat([x_pred, y_pred], dim=1),
             )
         self.log('val/mse', full_state_loss)
+        self.log('val/energy_mse', energy_loss)
         return full_state_loss
 
     def test_step(self, batch, batch_idx):
@@ -78,10 +82,11 @@ class LitConvRAE(pl.LightningModule):
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             pred = torch.cat([x_pred, y_pred], dim=1)
-            _, full_state_loss, _ = self.compute_loss(data, pred)
+            _, full_state_loss, _, energy_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
         self.log('test/mse', full_state_loss)
+        self.log('test/energy_mse', energy_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
         return full_state_loss
