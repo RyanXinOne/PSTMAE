@@ -70,6 +70,22 @@ class ShallowWaterDataset(Dataset):
 
         return x, y, mask
 
+    @staticmethod
+    def calculate_total_energy(data, dx=0.01, g=1.0):
+        '''
+        Calculate total energy for the data of sequence.
+
+        Args:
+            data (torch.Tensor): sequence data with shape ([N,] Nt, C, H, W) and C = h, u, v.
+
+        Returns:
+            torch.Tensor: total energy with shape ([N,] Nt).
+        '''
+        kinetic_energy = 0.5 * (torch.sum(data[..., 1, :, :] ** 2, axis=(-2, -1)) + torch.sum(data[..., 2, :, :] ** 2, axis=(-2, -1))) * dx**2
+        potential_energy = torch.sum(0.5 * g * data[..., 0, :, :] ** 2, axis=(-2, -1)) * dx**2
+        total_energy = kinetic_energy + potential_energy
+        return total_energy
+
 
 class DiffusionReactionDataset(Dataset):
     '''
@@ -156,17 +172,59 @@ class CompressibleNavierStokesDataset(Dataset):
         return x, y, mask
 
 
+class NOAASeaSurfacePressureDataset(Dataset):
+    '''
+    Dataset for NOAA sea surface pressure data.
+    '''
+
+    def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5, dilation=1):
+        super().__init__()
+        self.path = '/homes/yx723/b/Datasets/NOAA_data/sst_weekly.mat'
+        self.sequence_steps = sequence_steps
+        self.forecast_steps = forecast_steps
+        self.masking_steps = masking_steps
+        self.dilation = dilation
+        self.h5file = h5py.File(self.path, 'r')
+
+        self.data = self.h5file["sst"][...].reshape(-1, 1, 180, 360, order='F')[:, :, ::-1, :]
+        self.data_mask = ~np.isnan(self.data[0, 0])
+
+        self.min_vals = -1.8
+        self.max_vals = 36.16
+
+        self.seuqence_num = self.data.shape[0] - self.dilation * (self.sequence_steps - 1)
+
+    def __len__(self):
+        return self.seuqence_num
+
+    def __getitem__(self, index):
+        index %= self.seuqence_num
+        data = self.data[index: index + self.sequence_steps * self.dilation: self.dilation]
+
+        data = normalise(data, self.min_vals, self.max_vals)
+        data = np.nan_to_num(data)
+        data = torch.from_numpy(data).float()
+
+        x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
+
+        mask = generate_random_mask(x.size(0), self.masking_steps)
+        mask = torch.from_numpy(mask).float()
+
+        return x, y, mask
+
+
 if __name__ == '__main__':
     # dataset = DummyDataset()
     # dataset = ShallowWaterDataset()
     # dataset = DiffusionReactionDataset()
     dataset = CompressibleNavierStokesDataset()
+    # dataset = NOAASeaSurfacePressureDataset()
     print(len(dataset))
     x, y, mask = dataset[0]
     print(x.shape, y.shape)
     print(mask)
 
     from data.utils import interpolate_sequence, visualise_sequence
-    visualise_sequence(x, save_path='../sequence.png')
+    visualise_sequence(x, save_path='sequence.png')
     x_int = interpolate_sequence(x, mask)
     print((x - x_int).numpy().max(axis=(1, 2, 3)))
