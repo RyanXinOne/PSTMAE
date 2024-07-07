@@ -65,7 +65,7 @@ class LitTiKAN(pl.LightningModule):
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         self.log('val/latent_mse', latent_loss)
-        return full_state_loss
+        return loss
 
     def test_step(self, batch, batch_idx):
         x, y, mask = batch
@@ -87,7 +87,7 @@ class LitTiKAN(pl.LightningModule):
         self.log('test/latent_mse', latent_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
-        return full_state_loss
+        return loss
 
     def predict_step(self, batch, batch_idx):
         x, y, mask = batch

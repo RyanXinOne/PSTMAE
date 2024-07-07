@@ -63,13 +63,14 @@ class LitConvRAE(pl.LightningModule):
 
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
-            _, full_state_loss, _, energy_loss = self.compute_loss(
+            loss, full_state_loss, _, energy_loss = self.compute_loss(
                 torch.cat([x, y], dim=1),
                 torch.cat([x_pred, y_pred], dim=1),
             )
+        self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         self.log('val/energy_mse', energy_loss)
-        return full_state_loss
+        return loss
 
     def test_step(self, batch, batch_idx):
         x, y, mask = batch
@@ -82,14 +83,15 @@ class LitConvRAE(pl.LightningModule):
         with torch.no_grad():
             x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
             pred = torch.cat([x_pred, y_pred], dim=1)
-            _, full_state_loss, _, energy_loss = self.compute_loss(data, pred)
+            loss, full_state_loss, _, energy_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
+        self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
         self.log('test/energy_mse', energy_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
-        return full_state_loss
+        return loss
 
     def predict_step(self, batch, batch_idx):
         x, y, mask = batch
