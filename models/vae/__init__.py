@@ -55,7 +55,7 @@ class SeqConvVariationalAutoEncoder(nn.Module):
 
     def forward(self, x):
         '''
-        input shape: (b, l, c, 64, 64)
+        input shape: (b, l, c, h, w)
         '''
         mu, logvar = self.encode(x)
         if self.training:

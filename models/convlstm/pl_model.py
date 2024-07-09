@@ -25,33 +25,29 @@ class LitConvLSTM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y, mask = batch
+        data = torch.cat([x, y], dim=1)
 
         x_int = x.clone()
         for i in range(len(x_int)):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
-        x_pred, y_pred = self.model(x_int, y)
-        loss, full_state_loss = self.compute_loss(
-            torch.cat([x, y], dim=1),
-            torch.cat([x_pred, y_pred], dim=1),
-        )
+        pred = self.model(x_int, y)
+        loss, full_state_loss = self.compute_loss(data, pred)
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y, mask = batch
+        data = torch.cat([x, y], dim=1)
 
         x_int = x.clone()
         for i in range(len(x_int)):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
-            loss, full_state_loss = self.compute_loss(
-                torch.cat([x, y], dim=1),
-                torch.cat([x_pred, y_pred], dim=1),
-            )
+            pred = self.model.predict(x_int, self.forecast_steps)
+            loss, full_state_loss = self.compute_loss(data, pred)
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         return loss
@@ -65,8 +61,7 @@ class LitConvLSTM(pl.LightningModule):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
-            pred = torch.cat([x_pred, y_pred], dim=1)
+            pred = self.model.predict(x_int, self.forecast_steps)
             loss, full_state_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
@@ -87,16 +82,16 @@ class LitConvLSTM(pl.LightningModule):
         os.makedirs('logs/convlstm/output', exist_ok=True)
 
         with torch.no_grad():
-            x_pred, y_pred = self.model.predict(x_int, self.forecast_steps)
+            pred = self.model.predict(x_int, self.forecast_steps)
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i
             if vi >= self.visualise_num:
                 break
             input_ = torch.cat([x[i], y[i]], dim=0)
-            output = torch.cat([x_pred[i], y_pred[i]], dim=0)
+            output = pred[i]
             diff = torch.abs(input_ - output)
             visualise_sequence(input_, save_path=f'logs/convlstm/output/input_{vi}.png')
             visualise_sequence(output, save_path=f'logs/convlstm/output/predict_{vi}.png')
             visualise_sequence(diff, save_path=f'logs/convlstm/output/diff_{vi}.png')
-        return y_pred
+        return pred
