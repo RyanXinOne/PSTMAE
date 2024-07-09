@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convlstm import ConvLSTMForecaster
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitConvLSTM(pl.LightningModule):
@@ -13,6 +14,9 @@ class LitConvLSTM(pl.LightningModule):
         self.model = ConvLSTMForecaster(input_dim=1, hidden_dim=1, kernel_size=3, num_layers=1)
         self.forecast_steps = 5
         self.visualise_num = 5
+
+        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
+        self.register_buffer("data_mask", data_mask, persistent=False)
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
@@ -32,6 +36,7 @@ class LitConvLSTM(pl.LightningModule):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         pred = self.model(x_int, y)
+        pred = pred * self.data_mask
         loss, full_state_loss = self.compute_loss(data, pred)
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
@@ -47,6 +52,7 @@ class LitConvLSTM(pl.LightningModule):
 
         with torch.no_grad():
             pred = self.model.predict(x_int, self.forecast_steps)
+            pred = pred * self.data_mask
             loss, full_state_loss = self.compute_loss(data, pred)
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
@@ -62,6 +68,7 @@ class LitConvLSTM(pl.LightningModule):
 
         with torch.no_grad():
             pred = self.model.predict(x_int, self.forecast_steps)
+            pred = pred * self.data_mask
             loss, full_state_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
@@ -83,6 +90,7 @@ class LitConvLSTM(pl.LightningModule):
 
         with torch.no_grad():
             pred = self.model.predict(x_int, self.forecast_steps)
+            pred = pred * self.data_mask
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i

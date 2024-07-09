@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convrae import ConvRAE
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitConvRAE(pl.LightningModule):
@@ -16,6 +17,9 @@ class LitConvRAE(pl.LightningModule):
 
         # load pretrained autoencoder
         self.model.autoencoder.load_pretrained_freeze()
+
+        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
+        self.register_buffer("data_mask", data_mask, persistent=False)
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=0)
@@ -40,6 +44,7 @@ class LitConvRAE(pl.LightningModule):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         pred, z = self.model(x_int, y)
+        pred = pred * self.data_mask
         loss, full_state_loss, latent_loss = self.compute_loss(data, pred, z1, z)
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
@@ -56,6 +61,7 @@ class LitConvRAE(pl.LightningModule):
 
         with torch.no_grad():
             pred = self.model.predict(x_int, self.forecast_steps)
+            pred = pred * self.data_mask
             loss, full_state_loss, _ = self.compute_loss(data, pred)
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
@@ -71,6 +77,7 @@ class LitConvRAE(pl.LightningModule):
 
         with torch.no_grad():
             pred = self.model.predict(x_int, self.forecast_steps)
+            pred = pred * self.data_mask
             loss, full_state_loss, _ = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
@@ -92,6 +99,7 @@ class LitConvRAE(pl.LightningModule):
 
         with torch.no_grad():
             pred = self.model.predict(x_int, self.forecast_steps)
+            pred = pred * self.data_mask
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i

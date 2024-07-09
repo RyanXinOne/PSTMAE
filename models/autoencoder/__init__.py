@@ -6,7 +6,7 @@ class SeqConvAutoEncoder(nn.Module):
     '''
     A Convolutional AutoEncoder that compresses sequence images into latent space.
 
-    Image size: 128 * 128
+    Image size: 180 * 360
     '''
 
     def __init__(self, input_dim, latent_dim):
@@ -14,28 +14,32 @@ class SeqConvAutoEncoder(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(input_dim, 8, 3, stride=1, padding=1),
             nn.GELU(),
-            nn.Conv2d(8, 16, 3, stride=2, padding=1),
+            nn.Conv2d(8, 16, 3, stride=2, padding=1), #90 180
             nn.GELU(),
-            nn.Conv2d(16, 32, 3, stride=2, padding=1),
+            nn.Conv2d(16, 32, 3, stride=2, padding=1), #45 90
             nn.GELU(),
-            nn.Conv2d(32, 64, 3, stride=2, padding=1),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1), #23 45
             nn.GELU(),
-            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), #12 23
+            nn.GELU(),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1), #6 12
             nn.GELU(),
             nn.Flatten(),
-            nn.Linear(128 * 8 * 8, latent_dim)
+            nn.Linear(256 * 6 * 12, latent_dim)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 128 * 8 * 8),
-            nn.Unflatten(1, (128, 8, 8)),
+            nn.Linear(latent_dim, 256 * 6 * 12),
+            nn.Unflatten(1, (256, 6, 12)),
             nn.GELU(),
-            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=(1, 0)),
             nn.GELU(),
-            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=(0, 0)),
             nn.GELU(),
-            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=(0, 1)),
             nn.GELU(),
-            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=(1, 1)),
+            nn.GELU(),
+            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=(1, 1)),
             nn.GELU(),
             nn.Conv2d(8, input_dim, 3, stride=1, padding=1),
             nn.Sigmoid()
@@ -46,7 +50,7 @@ class SeqConvAutoEncoder(nn.Module):
     def initialise_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.xavier_normal_(m.weight)
+                nn.init.kaiming_normal_(m.weight)
                 nn.init.zeros_(m.bias)
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
@@ -79,7 +83,7 @@ class SeqConvAutoEncoder(nn.Module):
         return x
 
     def load_pretrained_freeze(self):
-        pl_ckpt_path = ''
+        pl_ckpt_path = 'logs/autoencoder/noaa.ckpt'
         if pl_ckpt_path:
             # load pretrained autoencoder
             state_dict = torch.load(pl_ckpt_path, map_location='cpu')['state_dict']
@@ -95,8 +99,8 @@ class SeqConvAutoEncoder(nn.Module):
 
 
 if __name__ == '__main__':
-    model = SeqConvAutoEncoder(input_dim=2, latent_dim=128)
+    model = SeqConvAutoEncoder(input_dim=1, latent_dim=128)
     model.load_pretrained_freeze()
-    x = torch.randn(5, 10, 2, 128, 128)
+    x = torch.randn(5, 10, 1, 180, 360)
     y, z = model(x)
     print(y.size(), z.size())

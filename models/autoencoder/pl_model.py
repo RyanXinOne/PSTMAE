@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.autoencoder import SeqConvAutoEncoder
 from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitAutoEncoder(pl.LightningModule):
@@ -13,6 +14,9 @@ class LitAutoEncoder(pl.LightningModule):
         self.model = SeqConvAutoEncoder(input_dim=1, latent_dim=128)
         self.visualise_num = 5
 
+        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
+        self.register_buffer('data_mask', data_mask, persistent=False)
+
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
         return optimizer
@@ -20,12 +24,13 @@ class LitAutoEncoder(pl.LightningModule):
     def compute_loss(self, x, y, z):
         mse_loss = F.mse_loss(y, x)
         reg_loss = torch.mean(z**2)
-        loss = mse_loss + 1e-7 * reg_loss
+        loss = mse_loss + 1e-6 * reg_loss
         return loss, mse_loss, reg_loss
 
     def training_step(self, batch, batch_idx):
         data = batch[0]
         pred, z = self.model(data)
+        pred = pred * self.data_mask
         loss, mse_loss, reg_loss = self.compute_loss(data, pred, z)
         self.log('train/loss', loss)
         self.log('train/mse', mse_loss)
@@ -36,6 +41,7 @@ class LitAutoEncoder(pl.LightningModule):
         data = batch[0]
         with torch.no_grad():
             pred, z = self.model(data)
+            pred = pred * self.data_mask
             loss, mse_loss, reg_loss = self.compute_loss(data, pred, z)
         self.log('val/loss', loss)
         self.log('val/mse', mse_loss)
@@ -46,6 +52,7 @@ class LitAutoEncoder(pl.LightningModule):
         data = batch[0]
         with torch.no_grad():
             pred, z = self.model(data)
+            pred = pred * self.data_mask
             loss, mse_loss, reg_loss = self.compute_loss(data, pred, z)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
@@ -63,6 +70,7 @@ class LitAutoEncoder(pl.LightningModule):
 
         with torch.no_grad():
             pred, _ = self.model(data)
+            pred = pred * self.data_mask
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i

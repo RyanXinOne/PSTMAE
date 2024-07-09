@@ -2,14 +2,14 @@ from torch.utils.data import DataLoader, random_split
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.timae.pl_model import LitTiMAE
-from data.dataset import DummyDataset
+from data.dataset import NOAASeaSurfacePressureDataset
 
 
 def main():
     model = LitTiMAE()
     summary(model.model)
 
-    dataset = DummyDataset()
+    dataset = NOAASeaSurfacePressureDataset(dilation=1)
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.9, 0.05, 0.05])
 
     train_loader = DataLoader(train_dataset, 32, num_workers=6, persistent_workers=True)
