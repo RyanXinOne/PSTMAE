@@ -11,7 +11,7 @@ from data.dataset import NOAASeaSurfacePressureDataset
 class LitConvLSTM(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = ConvLSTMForecaster(input_dim=1, hidden_dim=1, kernel_size=3, num_layers=1)
+        self.model = ConvLSTMForecaster(input_dim=1, hidden_dim=6, kernel_size=3, num_layers=1)
         self.forecast_steps = 5
         self.visualise_num = 5
 

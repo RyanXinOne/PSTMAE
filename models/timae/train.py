@@ -17,7 +17,7 @@ def main():
     test_loader = DataLoader(test_dataset, 32, num_workers=4)
 
     trainer = pl.Trainer(
-        max_epochs=40,
+        max_epochs=70,
         logger=True,
         log_every_n_steps=10,
         enable_checkpointing=True,
