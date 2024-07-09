@@ -21,7 +21,7 @@ class LitTiMAE(pl.LightningModule):
             decoder_depth=1,
             forecast_steps=5
         )
-        self.visulise_num = 5
+        self.visualise_num = 5
 
         # load pretrained autoencoder
         self.model.autoencoder.load_pretrained_freeze()
@@ -48,8 +48,10 @@ class LitTiMAE(pl.LightningModule):
         x, y, mask = batch
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
+
         pred, z2 = self.model(x, mask)
         loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
+
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         self.log('train/latent_mse', latent_loss)
@@ -61,10 +63,12 @@ class LitTiMAE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y, mask = batch
         data = torch.cat([x, y], dim=1)
+        z1 = self.model.autoencoder.encode(data)
+
         with torch.no_grad():
-            z1 = self.model.autoencoder.encode(data)
             pred, z2 = self.model(x, mask)
             loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
+
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         self.log('val/latent_mse', latent_loss)
@@ -74,12 +78,14 @@ class LitTiMAE(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y, mask = batch
         data = torch.cat([x, y], dim=1)
+        z1 = self.model.autoencoder.encode(data)
+
         with torch.no_grad():
-            z1 = self.model.autoencoder.encode(data)
             pred, z2 = self.model(x, mask)
             loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
+
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
         self.log('test/latent_mse', latent_loss)
@@ -99,7 +105,7 @@ class LitTiMAE(pl.LightningModule):
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i
-            if vi >= self.visulise_num:
+            if vi >= self.visualise_num:
                 break
             input_ = torch.cat([x[i], y[i]], dim=0)
             output = pred[i]
