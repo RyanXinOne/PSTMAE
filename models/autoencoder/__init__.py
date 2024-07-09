@@ -54,7 +54,7 @@ class SeqConvAutoEncoder(nn.Module):
 
     def forward(self, x):
         '''
-        input shape: (b, l, c, 64, 64)
+        input shape: (b, l, c, h, w)
         '''
         z = self.encode(x)
         x = self.decode(z)
