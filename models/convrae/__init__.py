@@ -21,7 +21,7 @@ class ConvRAE(nn.Module):
 
     def forward(self, x, y):
         '''
-        input shape: (b, l, c, 64, 64)
+        input shape: (b, l, c, h, w)
         '''
         # image space -> latent space
         zx = self.autoencoder.encode(x)
@@ -40,11 +40,13 @@ class ConvRAE(nn.Module):
         x_pred = self.autoencoder.decode(zx_pred)
         y_pred = self.autoencoder.decode(zy_pred)
 
-        return x_pred, y_pred, zx_pred, zy_pred
+        pred = torch.cat([x_pred, y_pred], dim=1)
+        z = torch.cat([zx_pred, zy_pred], dim=1)
+        return pred, z
 
     def predict(self, x, forecast_steps):
         '''
-        input shape: (b, l, c, 64, 64)
+        input shape: (b, l, c, h, w)
         '''
         with torch.no_grad():
             # image space -> latent space
@@ -67,17 +69,17 @@ class ConvRAE(nn.Module):
             x_pred = self.autoencoder.decode(zx_pred)
             y_pred = self.autoencoder.decode(zy_pred)
 
-        return x_pred, y_pred
+            pred = torch.cat([x_pred, y_pred], dim=1)
+        return pred
 
 
 if __name__ == '__main__':
     model = ConvRAE(3, 128, 128)
     print(model)
 
-    x = torch.randn(5, 10, 3, 64, 64)
-    y = torch.randn(5, 5, 3, 64, 64)
-    x_pred, y_pred, zx_pred, zy_pred = model(x, y)
-    print(x_pred.shape, zx_pred.shape)
-    print(y_pred.shape, zy_pred.shape)
-    x_pred, y_pred = model.predict(x, 5)
-    print(x_pred.shape, y_pred.shape)
+    x = torch.randn(5, 10, 3, 128, 128)
+    y = torch.randn(5, 5, 3, 128, 128)
+    pred, z = model(x, y)
+    print(pred.shape, z.shape)
+    pred = model.predict(x, 5)
+    print(pred.shape)

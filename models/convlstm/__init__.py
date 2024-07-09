@@ -208,7 +208,8 @@ class ConvLSTMForecaster(nn.Module):
         y_pred, _ = self.forecaster(y_input, hidden_state)
         y_pred = self.proj_f(y_pred[-1])
 
-        return x_pred, y_pred
+        pred = torch.cat([x_pred, y_pred], dim=1)
+        return pred
 
     def predict(self, x, forecast_steps):
         '''
@@ -228,16 +229,17 @@ class ConvLSTMForecaster(nn.Module):
                 y_pred.append(y_input)
             y_pred = torch.cat(y_pred, dim=1)
 
-        return x_pred, y_pred
+            pred = torch.cat([x_pred, y_pred], dim=1)
+        return pred
 
 
 if __name__ == '__main__':
-    model = ConvLSTMForecaster(input_dim=3, hidden_dim=32, kernel_size=3, num_layers=2)
+    model = ConvLSTMForecaster(input_dim=3, hidden_dim=6, kernel_size=3, num_layers=2)
     print(model)
 
-    x = torch.randn(5, 10, 3, 64, 64)
-    y = torch.randn(5, 5, 3, 64, 64)
-    x_pred, y_pred = model(x, y)
-    print(x_pred.shape, y_pred.shape)
-    x_pred, y_pred = model.predict(x, 5)
-    print(x_pred.shape, y_pred.shape)
+    x = torch.randn(5, 10, 3, 128, 128)
+    y = torch.randn(5, 5, 3, 128, 128)
+    pred = model(x, y)
+    print(pred.shape)
+    pred = model.predict(x, 5)
+    print(pred.shape)
