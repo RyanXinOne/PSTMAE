@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from data.utils import generate_random_mask, normalise
+from data.utils import generate_random_mask, normalise, unnormalise
 
 
 class DummyDataset(Dataset):
@@ -34,6 +34,8 @@ class ShallowWaterDataset(Dataset):
     '''
     Dataset for Shallow Water simulation data.
     '''
+    min_vals = np.array([0.66, -0.17, -0.17]).reshape(1, 3, 1, 1)
+    max_vals = np.array([1.29, 0.17, 0.17]).reshape(1, 3, 1, 1)
 
     def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5, dilation=1):
         super().__init__()
@@ -43,10 +45,6 @@ class ShallowWaterDataset(Dataset):
         self.forecast_steps = forecast_steps
         self.masking_steps = masking_steps
         self.dilation = dilation
-
-        # compute min and max values of h, u, v for normalisation
-        self.min_vals = np.array([0.66, -0.17, -0.17]).reshape(1, 3, 1, 1)
-        self.max_vals = np.array([1.29, 0.17, 0.17]).reshape(1, 3, 1, 1)
 
         # calculate number of sequences
         self.sequence_num_per_file = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.dilation * (self.sequence_steps - 1)
@@ -70,8 +68,8 @@ class ShallowWaterDataset(Dataset):
 
         return x, y, mask
 
-    @staticmethod
-    def calculate_total_energy(data, dx=0.01, g=1.0):
+    @classmethod
+    def calculate_total_energy(cls, data, dx=0.01, g=1.0):
         '''
         Calculate total energy for the data of sequence.
 
@@ -81,6 +79,7 @@ class ShallowWaterDataset(Dataset):
         Returns:
             torch.Tensor: total energy with shape ([N,] Nt).
         '''
+        data = unnormalise(data, cls.min_vals, cls.max_vals)
         kinetic_energy = 0.5 * (torch.sum(data[..., 1, :, :] ** 2, axis=(-2, -1)) + torch.sum(data[..., 2, :, :] ** 2, axis=(-2, -1))) * dx**2
         potential_energy = torch.sum(0.5 * g * data[..., 0, :, :] ** 2, axis=(-2, -1)) * dx**2
         total_energy = kinetic_energy + potential_energy
