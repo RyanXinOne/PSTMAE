@@ -1,9 +1,10 @@
 import os
+import json
 import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from data.utils import generate_random_mask, normalise
+from data.utils import generate_random_mask, normalise, unnormalise
 
 
 class DummyDataset(Dataset):
@@ -37,16 +38,17 @@ class ShallowWaterDataset(Dataset):
 
     def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5, dilation=1):
         super().__init__()
-        self.path = f'/homes/yx723/b/Datasets/ShallowWater-simulation/res128'
+        self.path = '/homes/yx723/b/Datasets/ShallowWater-simulation/res128'
+        self.configs_path = '/homes/yx723/b/Datasets/ShallowWater-simulation/configs_res128.json'
         self.files = os.listdir(self.path)
+        self.configs = json.load(open(self.configs_path, 'r'))
         self.sequence_steps = sequence_steps
         self.forecast_steps = forecast_steps
         self.masking_steps = masking_steps
         self.dilation = dilation
 
-        # compute min and max values of h, u, v for normalisation
         self.min_vals = np.array([0.66, -0.17, -0.17]).reshape(1, 3, 1, 1)
-        self.max_vals = np.array([1.20, 0.17, 0.17]).reshape(1, 3, 1, 1)
+        self.max_vals = np.array([1.29, 0.17, 0.17]).reshape(1, 3, 1, 1)
 
         # calculate number of sequences
         self.sequence_num_per_file = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.dilation * (self.sequence_steps - 1)
@@ -68,10 +70,12 @@ class ShallowWaterDataset(Dataset):
         mask = generate_random_mask(x.size(0), self.masking_steps)
         mask = torch.from_numpy(mask).float()
 
-        return x, y, mask
+        config = self.configs[self.files[file_idx]]
+
+        return x, y, mask, config
 
     @staticmethod
-    def calculate_total_energy(data, dx=0.01, g=1.0):
+    def calculate_total_energy(data, min_vals, max_vals, dx=0.01, g=1.0):
         '''
         Calculate total energy for the data of sequence.
 
@@ -81,10 +85,53 @@ class ShallowWaterDataset(Dataset):
         Returns:
             torch.Tensor: total energy with shape ([N,] Nt).
         '''
+        data = unnormalise(data, min_vals, max_vals)
         kinetic_energy = 0.5 * (torch.sum(data[..., 1, :, :] ** 2, axis=(-2, -1)) + torch.sum(data[..., 2, :, :] ** 2, axis=(-2, -1))) * dx**2
         potential_energy = torch.sum(0.5 * g * data[..., 0, :, :] ** 2, axis=(-2, -1)) * dx**2
         total_energy = kinetic_energy + potential_energy
         return total_energy
+
+    @staticmethod
+    def evolve_with_flow_operator(data, min_vals, max_vals, evolve_step=1, dt=0.0001, dx=0.01, g=1.0, b=0.0):
+        """
+        Step-wise evolve the data sequence with flow operator.
+
+        Args:
+            data (torch.Tensor): sequence data with shape ([N,] Nt, C, H, W) and C = h, u, v.
+
+        Returns:
+            torch.Tensor: evolved data with shape ([N,] Nt, C, H, W).
+        """
+
+        def dxy(A, dx, axis):
+            return (torch.roll(A, -1, axis) - torch.roll(A, 1, axis)) / (dx * 2.0)
+
+        def d_dx(A, dx):
+            return dxy(A, dx, -1)
+
+        def d_dy(A, dx):
+            return dxy(A, dx, -2)
+
+        def d_dt(h, u, v, dx, g, b):
+            du_dt = -g * d_dx(h, dx) - b * u
+            dv_dt = -g * d_dy(h, dx) - b * v
+            dh_dt = -d_dx(u * h, dx) - d_dy(v * h, dx)
+            return dh_dt, du_dt, dv_dt
+
+        def evolve(h, u, v, dt, dx, g, b):
+            dh_dt, du_dt, dv_dt = d_dt(h, u, v, dx, g, b)
+            h += dh_dt * dt
+            u += du_dt * dt
+            v += dv_dt * dt
+            return h, u, v
+
+        data = unnormalise(data, min_vals, max_vals)
+        h, u, v = data[..., 0, :, :], data[..., 1, :, :], data[..., 2, :, :]
+        for _ in range(evolve_step):
+            h, u, v = evolve(h, u, v, dt, dx, g, b)
+        evolved_data = torch.stack([h, u, v], dim=-3)
+        evolved_data = normalise(evolved_data, min_vals, max_vals)
+        return evolved_data
 
 
 class DiffusionReactionDataset(Dataset):

@@ -9,9 +9,10 @@ from data.dataset import ShallowWaterDataset
 
 
 class LitConvLSTM(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = ConvLSTMForecaster(input_dim=3, hidden_dim=3, kernel_size=3, num_layers=1)
+        self.dataset = dataset
         self.forecast_steps = 5
         self.visualise_num = 5
 

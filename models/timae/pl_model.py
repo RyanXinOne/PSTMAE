@@ -9,7 +9,7 @@ from data.dataset import ShallowWaterDataset
 
 
 class LitTiMAE(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = TimeSeriesMaskedAutoencoder(
             input_dim=3,
@@ -21,6 +21,7 @@ class LitTiMAE(pl.LightningModule):
             decoder_depth=1,
             forecast_steps=5
         )
+        self.dataset = dataset
         self.visualise_num = 5
 
         # load pretrained autoencoder
