@@ -5,11 +5,10 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.timae import TimeSeriesMaskedAutoencoder
 from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr_series
-from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitTiMAE(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = TimeSeriesMaskedAutoencoder(
             input_dim=1,
@@ -21,13 +20,14 @@ class LitTiMAE(pl.LightningModule):
             decoder_depth=1,
             forecast_steps=5
         )
+        self.dataset = dataset
         self.visualise_num = 5
 
         # load pretrained autoencoder
         self.model.autoencoder.load_pretrained_freeze()
 
-        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
-        self.register_buffer("data_mask", data_mask, persistent=False)
+        data_mask = torch.from_numpy(self.dataset.data_mask).float()
+        self.register_buffer('data_mask', data_mask, persistent=False)
 
     def configure_optimizers(self):
         optimizer = optim.RAdam(

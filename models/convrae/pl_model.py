@@ -5,21 +5,21 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convrae import ConvRAE
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
-from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitConvRAE(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = ConvRAE(input_dim=1, latent_dim=128, hidden_dim=128)
+        self.dataset = dataset
         self.forecast_steps = 5
         self.visualise_num = 5
 
         # load pretrained autoencoder
         self.model.autoencoder.load_pretrained_freeze()
 
-        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
-        self.register_buffer("data_mask", data_mask, persistent=False)
+        data_mask = torch.from_numpy(self.dataset.data_mask).float()
+        self.register_buffer('data_mask', data_mask, persistent=False)
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=0)

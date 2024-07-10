@@ -25,6 +25,14 @@ def normalise(data, min_vals, max_vals):
     return data
 
 
+def unnormalise(data, min_vals, max_vals):
+    '''
+    Unnormalise data from the range [0, 1].
+    '''
+    data = data * (max_vals - min_vals) + min_vals
+    return data
+
+
 def visualise_sequence(data, vmin=None, vmax=None, save_path=None):
     '''
     Visualise a sequence of data with shape (seq_len, n_channels, height, width).

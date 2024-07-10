@@ -5,18 +5,18 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convlstm import ConvLSTMForecaster
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
-from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitConvLSTM(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = ConvLSTMForecaster(input_dim=1, hidden_dim=6, kernel_size=3, num_layers=1)
+        self.dataset = dataset
         self.forecast_steps = 5
         self.visualise_num = 5
 
-        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
-        self.register_buffer("data_mask", data_mask, persistent=False)
+        data_mask = torch.from_numpy(self.dataset.data_mask).float()
+        self.register_buffer('data_mask', data_mask, persistent=False)
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)

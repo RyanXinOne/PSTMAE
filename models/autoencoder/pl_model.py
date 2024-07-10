@@ -5,16 +5,16 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.autoencoder import SeqConvAutoEncoder
 from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr_series
-from data.dataset import NOAASeaSurfacePressureDataset
 
 
 class LitAutoEncoder(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = SeqConvAutoEncoder(input_dim=1, latent_dim=128)
+        self.dataset = dataset
         self.visualise_num = 5
 
-        data_mask = torch.from_numpy(NOAASeaSurfacePressureDataset().data_mask).float()
+        data_mask = torch.from_numpy(self.dataset.data_mask).float()
         self.register_buffer('data_mask', data_mask, persistent=False)
 
     def configure_optimizers(self):
