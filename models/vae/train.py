@@ -6,15 +6,15 @@ from data.dataset import DummyDataset
 
 
 def main():
-    model = LitVariationalAutoEncoder()
-    summary(model.model)
-
     dataset = DummyDataset(sequence_steps=1, forecast_steps=0, masking_steps=0)
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.9, 0.05, 0.05])
 
     train_loader = DataLoader(train_dataset, 64, num_workers=4, persistent_workers=True)
     val_loader = DataLoader(val_dataset, 64, num_workers=2)
     test_loader = DataLoader(test_dataset, 64, num_workers=2)
+
+    model = LitVariationalAutoEncoder(dataset)
+    summary(model.model)
 
     trainer = pl.Trainer(
         max_epochs=50,
