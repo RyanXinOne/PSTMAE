@@ -8,9 +8,10 @@ from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr
 
 
 class LitAutoEncoder(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = SeqConvAutoEncoder(input_dim=1, latent_dim=128)
+        self.dataset = dataset
         self.visualise_num = 5
 
     def configure_optimizers(self):

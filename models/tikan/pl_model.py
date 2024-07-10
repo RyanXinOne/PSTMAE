@@ -8,7 +8,7 @@ from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_
 
 
 class LitTiKAN(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = TiKAN(input_dim=1,
                            latent_dim=128,
@@ -17,6 +17,7 @@ class LitTiKAN(pl.LightningModule):
                            spline_order=3,
                            input_steps=10,
                            forecast_steps=5)
+        self.dataset = dataset
         self.visualise_num = 5
 
         # load pretrained autoencoder
