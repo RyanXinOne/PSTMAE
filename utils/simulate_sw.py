@@ -97,18 +97,18 @@ def simulate(save_dir=None):
     R = random.randint(40 * 2, 80 * 2) * 1.
     Hp = random.uniform(0.05, 0.2)
     b = random.uniform(0.02, 2)
-    time_step_gap = random.randint(60, 100)
+    step = random.randint(60, 100)
     sequence_length = 200
 
-    # print(f'px: {px}, py: {py}, R: {R}, Hp: {Hp:.4f}, b: {b:.4f}, gap: {time_step_gap}')
+    # print(f'px: {px}, py: {py}, R: {R}, Hp: {Hp:.4f}, b: {b:.4f}, step: {step}')
 
     sw = ShallowWater(N=N, px=px, py=py, R=R, Hp=Hp, b=b)
 
     sequence_data = np.zeros((sequence_length, 3, N, N))
 
-    for i in range(time_step_gap * sequence_length):
-        if i % time_step_gap == 0:
-            index = i // time_step_gap
+    for i in range(step * sequence_length):
+        if i % step == 0:
+            index = i // step
 
             # print(f'index {index}, time {sw.time:.4f}')
             # plt.imshow(sw.h)
@@ -123,16 +123,16 @@ def simulate(save_dir=None):
 
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)
-        uid = uuid.uuid4().hex[:16]
-        np.save(os.path.join(save_dir, f'{uid}.npy'), sequence_data.astype(np.float32))
+        file_name = f'{uuid.uuid4().hex[:16]}.npy'
+        np.save(os.path.join(save_dir, file_name), sequence_data.astype(np.float32))
         return {
-            uid: {
+            file_name: {
                 "px": px,
                 "py": py,
                 "R": R,
                 "Hp": Hp,
                 "b": b,
-                "time_step_gap": time_step_gap,
+                "step": step,
             }
         }
 
