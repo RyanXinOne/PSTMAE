@@ -34,7 +34,7 @@ class LitTiKAN(pl.LightningModule):
         return loss, full_state_loss, latent_loss
 
     def training_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
 
@@ -51,7 +51,7 @@ class LitTiKAN(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
 
@@ -69,7 +69,7 @@ class LitTiKAN(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
 
@@ -91,7 +91,7 @@ class LitTiKAN(pl.LightningModule):
         return loss
 
     def predict_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
 
         x_int = x.clone()
         for i in range(len(x_int)):

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convlstm import ConvLSTMForecaster
 from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
-from data.dataset import ShallowWaterDataset
+from data.dataset import ShallowWaterDataset as sw
 
 
 class LitConvLSTM(pl.LightningModule):
@@ -16,18 +16,25 @@ class LitConvLSTM(pl.LightningModule):
         self.forecast_steps = 5
         self.visualise_num = 5
 
+        min_vals = torch.from_numpy(dataset.min_vals).float()
+        max_vals = torch.from_numpy(dataset.max_vals).float()
+        self.register_buffer('min_vals', min_vals)
+        self.register_buffer('max_vals', max_vals)
+
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
         return optimizer
 
     def compute_loss(self, x, pred):
         full_state_loss = F.mse_loss(pred, x)
-        energy_loss = F.mse_loss(ShallowWaterDataset.calculate_total_energy(pred), ShallowWaterDataset.calculate_total_energy(x))
+        energy_loss = F.mse_loss(
+            sw.calculate_total_energy(pred, self.min_vals, self.max_vals),
+            sw.calculate_total_energy(x, self.min_vals, self.max_vals))
         loss = full_state_loss + 0.1 * energy_loss
         return loss, full_state_loss, energy_loss
 
     def training_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
 
         x_int = x.clone()
@@ -42,7 +49,7 @@ class LitConvLSTM(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
 
         x_int = x.clone()
@@ -58,7 +65,7 @@ class LitConvLSTM(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
 
         x_int = x.clone()
@@ -78,7 +85,7 @@ class LitConvLSTM(pl.LightningModule):
         return loss
 
     def predict_step(self, batch, batch_idx):
-        x, y, mask = batch
+        x, y, mask = batch[:3]
 
         x_int = x.clone()
         for i in range(len(x_int)):
