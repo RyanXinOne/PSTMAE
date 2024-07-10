@@ -46,7 +46,7 @@ class ShallowWaterDataset(Dataset):
 
         # compute min and max values of h, u, v for normalisation
         self.min_vals = np.array([0.66, -0.17, -0.17]).reshape(1, 3, 1, 1)
-        self.max_vals = np.array([1.20, 0.17, 0.17]).reshape(1, 3, 1, 1)
+        self.max_vals = np.array([1.29, 0.17, 0.17]).reshape(1, 3, 1, 1)
 
         # calculate number of sequences
         self.sequence_num_per_file = np.load(os.path.join(self.path, self.files[0])).shape[0] - self.dilation * (self.sequence_steps - 1)
