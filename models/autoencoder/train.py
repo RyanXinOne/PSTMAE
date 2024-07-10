@@ -6,15 +6,15 @@ from data.dataset import DiffusionReactionDataset
 
 
 def main():
-    model = LitAutoEncoder()
-    summary(model.model)
-
     dataset = DiffusionReactionDataset(sequence_steps=10, forecast_steps=0, masking_steps=0, dilation=1)
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.9, 0.05, 0.05])
 
     train_loader = DataLoader(train_dataset, 32, num_workers=6, persistent_workers=True)
     val_loader = DataLoader(val_dataset, 32, num_workers=4)
     test_loader = DataLoader(test_dataset, 32, num_workers=4)
+
+    model = LitAutoEncoder(dataset)
+    summary(model.model)
 
     trainer = pl.Trainer(
         max_epochs=50,

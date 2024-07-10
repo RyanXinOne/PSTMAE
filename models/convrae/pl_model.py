@@ -8,9 +8,10 @@ from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_
 
 
 class LitConvRAE(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, dataset):
         super().__init__()
         self.model = ConvRAE(input_dim=2, latent_dim=128, hidden_dim=128)
+        self.dataset = dataset
         self.forecast_steps = 5
         self.visualise_num = 5
 
