@@ -27,8 +27,8 @@ class LitTiMAE(pl.LightningModule):
         # load pretrained autoencoder
         self.model.autoencoder.load_pretrained_freeze()
 
-        min_vals = torch.from_numpy(dataset.min_vals).float()
-        max_vals = torch.from_numpy(dataset.max_vals).float()
+        min_vals = torch.from_numpy(self.dataset.min_vals).float()
+        max_vals = torch.from_numpy(self.dataset.max_vals).float()
         self.register_buffer('min_vals', min_vals)
         self.register_buffer('max_vals', max_vals)
 

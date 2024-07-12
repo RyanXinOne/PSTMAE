@@ -16,8 +16,8 @@ class LitConvLSTM(pl.LightningModule):
         self.forecast_steps = 5
         self.visualise_num = 5
 
-        min_vals = torch.from_numpy(dataset.min_vals).float()
-        max_vals = torch.from_numpy(dataset.max_vals).float()
+        min_vals = torch.from_numpy(self.dataset.min_vals).float()
+        max_vals = torch.from_numpy(self.dataset.max_vals).float()
         self.register_buffer('min_vals', min_vals)
         self.register_buffer('max_vals', max_vals)
 
