@@ -43,54 +43,66 @@ class LitTiMAE(pl.LightningModule):
             eta_min=3e-4)
         return [optimizer], [scheduler]
 
-    def compute_loss(self, x, pred, z1, z2):
-        full_state_loss = F.mse_loss(pred, x)
+    def compute_loss(self, data, pred, z1, z2, config=None):
+        full_state_loss = F.mse_loss(pred, data)
         latent_loss = F.mse_loss(z2, z1)
         energy_loss = F.mse_loss(
             sw.calculate_total_energy(pred, self.min_vals, self.max_vals),
-            sw.calculate_total_energy(x, self.min_vals, self.max_vals))
-        loss = full_state_loss + 0.5 * latent_loss + 0.1 * energy_loss
-        return loss, full_state_loss, latent_loss, energy_loss
+            sw.calculate_total_energy(data, self.min_vals, self.max_vals),)
+        operator_loss = 0
+        if config:
+            operator_loss += F.mse_loss(
+                pred[:, 1:],
+                sw.evolve_with_flow_operator(
+                    pred[:, :-1],
+                    self.min_vals,
+                    self.max_vals,
+                    evolve_step=config['step']*self.dataset.dilation,
+                    b=config['b'],))
+        loss = full_state_loss + 0.5 * latent_loss + 0.1 * energy_loss + 0.1 * operator_loss
+        return loss, full_state_loss, latent_loss, energy_loss, operator_loss
 
     def training_step(self, batch, batch_idx):
-        x, y, mask = batch[:3]
+        x, y, mask, config = batch
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
 
         pred, z2 = self.model(x, mask)
-        loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
+        loss, full_state_loss, latent_loss, energy_loss, operator_loss = self.compute_loss(data, pred, z1, z2, config)
 
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         self.log('train/latent_mse', latent_loss)
         self.log('train/energy_mse', energy_loss)
+        self.log('train/operator_mse', operator_loss)
         self.log('train/lr', self.trainer.optimizers[0].param_groups[0]['lr'])
         loss = torch.nan_to_num(loss, nan=10.0, posinf=10.0, neginf=10.0)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, mask = batch[:3]
+        x, y, mask, config = batch
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
 
         with torch.no_grad():
             pred, z2 = self.model(x, mask)
-            loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
+            loss, full_state_loss, latent_loss, energy_loss, operator_loss = self.compute_loss(data, pred, z1, z2, config)
 
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         self.log('val/latent_mse', latent_loss)
         self.log('val/energy_mse', energy_loss)
+        self.log('val/operator_mse', operator_loss)
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, y, mask = batch[:3]
+        x, y, mask, config = batch
         data = torch.cat([x, y], dim=1)
         z1 = self.model.autoencoder.encode(data)
 
         with torch.no_grad():
             pred, z2 = self.model(x, mask)
-            loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
+            loss, full_state_loss, latent_loss, energy_loss, operator_loss = self.compute_loss(data, pred, z1, z2, config)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
 
@@ -98,6 +110,7 @@ class LitTiMAE(pl.LightningModule):
         self.log('test/mse', full_state_loss)
         self.log('test/latent_mse', latent_loss)
         self.log('test/energy_mse', energy_loss)
+        self.log('test/operator_mse', operator_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
         return loss
