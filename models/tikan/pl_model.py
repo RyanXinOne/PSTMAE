@@ -10,9 +10,9 @@ from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_
 class LitTiKAN(pl.LightningModule):
     def __init__(self, dataset):
         super().__init__()
-        self.model = TiKAN(input_dim=1,
+        self.model = TiKAN(input_dim=3,
                            latent_dim=128,
-                           hidden_dims=[64, 64],
+                           hidden_dims=[300, 300],
                            grid_size=5,
                            spline_order=3,
                            input_steps=10,
