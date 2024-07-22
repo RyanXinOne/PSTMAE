@@ -10,7 +10,7 @@ from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_
 class LitConvLSTM(pl.LightningModule):
     def __init__(self, dataset):
         super().__init__()
-        self.model = ConvLSTMForecaster(input_dim=4, hidden_dim=4, kernel_size=3, num_layers=1)
+        self.model = ConvLSTMForecaster(input_dim=3, hidden_dim=6, kernel_size=3, num_layers=1)
         self.dataset = dataset
         self.forecast_steps = 5
         self.visualise_num = 5

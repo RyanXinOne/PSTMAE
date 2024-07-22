@@ -46,7 +46,8 @@ class SeqConvAutoEncoder(nn.Module):
     def initialise_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.xavier_normal_(m.weight)
+                nn.init.kaiming_normal_(m.weight) # for std
+                # nn.init.xavier_normal_(m.weight) # for hard
                 nn.init.zeros_(m.bias)
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
