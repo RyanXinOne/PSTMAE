@@ -211,7 +211,7 @@ class CompressibleNavierStokesDataset(Dataset):
 
         data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps]
 
-        data = normalise(data, self.min_vals, self.max_vals)
+        data = normalise(data, self.min_vals, self.max_vals)[:, :3]
         data = torch.from_numpy(data).float()
 
         x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
