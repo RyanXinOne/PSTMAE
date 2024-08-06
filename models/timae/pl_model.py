@@ -23,6 +23,8 @@ class LitTiMAE(pl.LightningModule):
         )
         self.dataset = dataset
         self.visualise_num = 5
+        self.enable_energy_loss = False
+        self.enable_operator_loss = False
 
         # load pretrained autoencoder
         self.model.autoencoder.load_pretrained_freeze()
@@ -43,14 +45,17 @@ class LitTiMAE(pl.LightningModule):
             eta_min=3e-4)
         return [optimizer], [scheduler]
 
-    def compute_loss(self, data, pred, z1, z2, config=None):
+    def compute_loss(self, data, pred, z1, z2, config):
         full_state_loss = F.mse_loss(pred, data)
         latent_loss = F.mse_loss(z2, z1)
-        energy_loss = F.mse_loss(
-            sw.calculate_total_energy(pred, self.min_vals, self.max_vals),
-            sw.calculate_total_energy(data, self.min_vals, self.max_vals),)
+        energy_loss = 0
+        if self.enable_energy_loss:
+            energy_loss = F.mse_loss(
+                sw.calculate_total_energy(pred, self.min_vals, self.max_vals),
+                sw.calculate_total_energy(data, self.min_vals, self.max_vals),
+            )
         operator_loss = 0
-        if config:
+        if self.enable_operator_loss:
             operator_loss += F.mse_loss(
                 pred[:, 1:],
                 sw.evolve_with_flow_operator(
@@ -73,8 +78,10 @@ class LitTiMAE(pl.LightningModule):
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         self.log('train/latent_mse', latent_loss)
-        self.log('train/energy_mse', energy_loss)
-        self.log('train/operator_mse', operator_loss)
+        if self.enable_energy_loss:
+            self.log('train/energy_mse', energy_loss)
+        if self.enable_operator_loss:
+            self.log('train/operator_mse', operator_loss)
         self.log('train/lr', self.trainer.optimizers[0].param_groups[0]['lr'])
         loss = torch.nan_to_num(loss, nan=10.0, posinf=10.0, neginf=10.0)
         return loss
@@ -91,8 +98,10 @@ class LitTiMAE(pl.LightningModule):
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         self.log('val/latent_mse', latent_loss)
-        self.log('val/energy_mse', energy_loss)
-        self.log('val/operator_mse', operator_loss)
+        if self.enable_energy_loss:
+            self.log('val/energy_mse', energy_loss)
+        if self.enable_operator_loss:
+            self.log('val/operator_mse', operator_loss)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -109,8 +118,10 @@ class LitTiMAE(pl.LightningModule):
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
         self.log('test/latent_mse', latent_loss)
-        self.log('test/energy_mse', energy_loss)
-        self.log('test/operator_mse', operator_loss)
+        if self.enable_energy_loss:
+            self.log('test/energy_mse', energy_loss)
+        if self.enable_operator_loss:
+            self.log('test/operator_mse', operator_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
         return loss
