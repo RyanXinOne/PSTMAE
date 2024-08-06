@@ -29,12 +29,9 @@ class LitConvRAE(pl.LightningModule):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-2)
         return optimizer
 
-    def compute_loss(self, x, pred, z1=None, z2=None):
+    def compute_loss(self, x, pred, z1, z2):
         full_state_loss = F.mse_loss(pred, x)
-        if z1 is None or z2 is None:
-            latent_loss = 0
-        else:
-            latent_loss = F.mse_loss(z2, z1)
+        latent_loss = F.mse_loss(z2, z1)
         energy_loss = 0
         if self.enable_energy_loss:
             energy_loss = F.mse_loss(
@@ -53,8 +50,8 @@ class LitConvRAE(pl.LightningModule):
         for i in range(len(x_int)):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
-        pred, z = self.model(x_int, y)
-        loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z)
+        pred, z2 = self.model(x_int, y)
+        loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         self.log('train/latent_mse', latent_loss)
@@ -65,16 +62,19 @@ class LitConvRAE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
+        z1 = self.model.autoencoder.encode(data)
 
         x_int = x.clone()
         for i in range(len(x_int)):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         with torch.no_grad():
-            pred = self.model.predict(x_int, self.forecast_steps)
-            loss, full_state_loss, _, energy_loss = self.compute_loss(data, pred)
+            pred, z2 = self.model.predict(x_int, self.forecast_steps)
+            loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
+
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
+        self.log('val/latent_mse', latent_loss)
         if self.enable_energy_loss:
             self.log('val/energy_mse', energy_loss)
         return loss
@@ -82,18 +82,21 @@ class LitConvRAE(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y, mask = batch[:3]
         data = torch.cat([x, y], dim=1)
+        z1 = self.model.autoencoder.encode(data)
 
         x_int = x.clone()
         for i in range(len(x_int)):
             x_int[i] = interpolate_sequence(x_int[i], mask[i])
 
         with torch.no_grad():
-            pred = self.model.predict(x_int, self.forecast_steps)
-            loss, full_state_loss, _, energy_loss = self.compute_loss(data, pred)
+            pred, z2 = self.model.predict(x_int, self.forecast_steps)
+            loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
+
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
+        self.log('test/latent_mse', latent_loss)
         if self.enable_energy_loss:
             self.log('test/energy_mse', energy_loss)
         self.log('test/ssim', ssim_value)
@@ -111,7 +114,7 @@ class LitConvRAE(pl.LightningModule):
         os.makedirs('logs/convrae/output', exist_ok=True)
 
         with torch.no_grad():
-            pred = self.model.predict(x_int, self.forecast_steps)
+            pred, _ = self.model.predict(x_int, self.forecast_steps)
 
         for i in range(batch_size):
             vi = batch_idx * batch_size + i
