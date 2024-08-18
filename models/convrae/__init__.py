@@ -70,7 +70,8 @@ class ConvRAE(nn.Module):
             y_pred = self.autoencoder.decode(zy_pred)
 
             pred = torch.cat([x_pred, y_pred], dim=1)
-        return pred
+            z = torch.cat([zx_pred, zy_pred], dim=1)
+        return pred, z
 
 
 if __name__ == '__main__':
@@ -81,5 +82,5 @@ if __name__ == '__main__':
     y = torch.randn(5, 5, 3, 128, 128)
     pred, z = model(x, y)
     print(pred.shape, z.shape)
-    pred = model.predict(x, 5)
-    print(pred.shape)
+    pred, z = model.predict(x, 5)
+    print(pred.shape, z.shape)
