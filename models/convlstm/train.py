@@ -17,7 +17,7 @@ def main():
     summary(model.model)
 
     trainer = pl.Trainer(
-        max_epochs=25,
+        max_epochs=34,
         logger=True,
         log_every_n_steps=10,
         enable_checkpointing=True,
