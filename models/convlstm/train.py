@@ -6,7 +6,7 @@ from data.dataset import DiffusionReactionDataset
 
 
 def main():
-    dataset = DiffusionReactionDataset()
+    dataset = DiffusionReactionDataset(dilation=5)
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1])
 
     train_loader = DataLoader(train_dataset, 32, num_workers=4, persistent_workers=True)
@@ -17,7 +17,7 @@ def main():
     summary(model.model)
 
     trainer = pl.Trainer(
-        max_epochs=20,
+        max_epochs=80,
         logger=True,
         log_every_n_steps=10,
         enable_checkpointing=True,
