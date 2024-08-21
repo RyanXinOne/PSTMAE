@@ -38,6 +38,7 @@ class LitConvLSTM(pl.LightningModule):
         pred = self.model(x_int, y)
         pred = pred * self.data_mask
         loss, full_state_loss = self.compute_loss(data, pred)
+
         self.log('train/loss', loss)
         self.log('train/mse', full_state_loss)
         return loss
@@ -54,6 +55,7 @@ class LitConvLSTM(pl.LightningModule):
             pred = self.model.predict(x_int, self.forecast_steps)
             pred = pred * self.data_mask
             loss, full_state_loss = self.compute_loss(data, pred)
+
         self.log('val/loss', loss)
         self.log('val/mse', full_state_loss)
         return loss
@@ -72,6 +74,7 @@ class LitConvLSTM(pl.LightningModule):
             loss, full_state_loss = self.compute_loss(data, pred)
             ssim_value = calculate_ssim_series(data, pred)
             psnr_value = calculate_psnr_series(data, pred)
+
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
         self.log('test/ssim', ssim_value)

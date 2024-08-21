@@ -92,15 +92,15 @@ class ShallowWaterDataset(Dataset):
         return total_energy
 
     @staticmethod
-    def evolve_with_flow_operator(data, min_vals, max_vals, evolve_step=1, dt=0.0001, dx=0.01, g=1.0, b=0.0):
+    def evolve_with_flow_operator(data, min_vals, max_vals, evolve_step, b, dt=0.0001, dx=0.01, g=1.0):
         """
         Step-wise evolve the data sequence with flow operator.
 
         Args:
-            data (torch.Tensor): sequence data with shape ([N,] Nt, C, H, W) and C = h, u, v.
+            data (torch.Tensor): sequence data with shape (N, Nt, C, H, W) and C = h, u, v.
 
         Returns:
-            torch.Tensor: evolved data with shape ([N,] Nt, C, H, W).
+            torch.Tensor: evolved data with shape (N, Nt, C, H, W).
         """
 
         def dxy(A, dx, axis):
@@ -125,12 +125,15 @@ class ShallowWaterDataset(Dataset):
             v += dv_dt * dt
             return h, u, v
 
-        data = unnormalise(data, min_vals, max_vals)
-        h, u, v = data[..., 0, :, :], data[..., 1, :, :], data[..., 2, :, :]
-        for _ in range(evolve_step):
-            h, u, v = evolve(h, u, v, dt, dx, g, b)
-        evolved_data = torch.stack([h, u, v], dim=-3)
-        evolved_data = normalise(evolved_data, min_vals, max_vals)
+        with torch.no_grad():
+            data = unnormalise(data, min_vals, max_vals)
+            h, u, v = data[:, :, 0, :, :], data[:, :, 1, :, :], data[:, :, 2, :, :]
+            b = b.float().reshape(-1, 1, 1, 1)
+            for s in range(evolve_step.max().item()):
+                mask = s < evolve_step
+                h[mask], u[mask], v[mask] = evolve(h[mask], u[mask], v[mask], dt, dx, g, b[mask])
+            evolved_data = torch.stack([h, u, v], dim=-3)
+            evolved_data = normalise(evolved_data, min_vals, max_vals)
         return evolved_data
 
 
@@ -208,7 +211,7 @@ class CompressibleNavierStokesDataset(Dataset):
 
         data = np.load(os.path.join(self.path, self.files[file_idx]))[seq_start_idx: seq_start_idx + self.sequence_steps]
 
-        data = normalise(data, self.min_vals, self.max_vals)
+        data = normalise(data, self.min_vals, self.max_vals)[:, :3]
         data = torch.from_numpy(data).float()
 
         x, y = data[:self.sequence_steps-self.forecast_steps], data[self.sequence_steps-self.forecast_steps:]
