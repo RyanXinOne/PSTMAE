@@ -222,9 +222,9 @@ class CompressibleNavierStokesDataset(Dataset):
         return x, y, mask
 
 
-class NOAASeaSurfacePressureDataset(Dataset):
+class NOAASeaSurfaceTemperatureDataset(Dataset):
     '''
-    Dataset for NOAA sea surface pressure data.
+    Dataset for NOAA sea surface temperature data.
     '''
 
     def __init__(self, sequence_steps=15, forecast_steps=5, masking_steps=5, dilation=1):
@@ -264,11 +264,11 @@ class NOAASeaSurfacePressureDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = DummyDataset()
+    # dataset = DummyDataset()
     # dataset = ShallowWaterDataset()
     # dataset = DiffusionReactionDataset()
     # dataset = CompressibleNavierStokesDataset()
-    # dataset = NOAASeaSurfacePressureDataset()
+    dataset = NOAASeaSurfaceTemperatureDataset()
     print(len(dataset))
     x, y, mask = dataset[0]
     print(x.shape, y.shape)

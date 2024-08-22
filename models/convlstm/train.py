@@ -2,11 +2,11 @@ from torch.utils.data import DataLoader, random_split
 import lightning.pytorch as pl
 from torchinfo import summary
 from models.convlstm.pl_model import LitConvLSTM
-from data.dataset import NOAASeaSurfacePressureDataset
+from data.dataset import NOAASeaSurfaceTemperatureDataset
 
 
 def main():
-    dataset = NOAASeaSurfacePressureDataset(dilation=1)
+    dataset = NOAASeaSurfaceTemperatureDataset(dilation=1)
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1])
 
     train_loader = DataLoader(train_dataset, 32, num_workers=4, persistent_workers=True)
