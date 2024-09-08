@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from models.autoencoder import SeqConvAutoEncoder
 
 
+# reference: [ti-mae](https://github.com/asmodaay/ti-mae/blob/master/src/nn/positional.py)
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=100, scaler=1.0):
         super().__init__()
@@ -29,6 +30,7 @@ class PositionalEncoding(nn.Module):
         return x
 
 
+# reference: [ti-mae](https://github.com/asmodaay/ti-mae/blob/master/src/nn/model.py)
 class TimeSeriesMaskedAutoencoder(nn.Module):
     """
     Masked Autoencoder with VanillaTransformer backbone for TimeSeries.
