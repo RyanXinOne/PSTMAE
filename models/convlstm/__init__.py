@@ -3,6 +3,7 @@ import torch.nn as nn
 from models.common import SeqConv2d
 
 
+# reference: [ConvLSTM_pytorch](https://github.com/ndrplz/ConvLSTM_pytorch)
 class ConvLSTMCell(nn.Module):
 
     def __init__(self, input_dim, hidden_dim, kernel_size, bias):
@@ -60,6 +61,7 @@ class ConvLSTMCell(nn.Module):
                 torch.zeros(batch_size, self.hidden_dim, height, width, device=self.conv.weight.device))
 
 
+# reference: [ConvLSTM_pytorch](https://github.com/ndrplz/ConvLSTM_pytorch)
 class ConvLSTM(nn.Module):
     """
     Convolutional LSTM.
