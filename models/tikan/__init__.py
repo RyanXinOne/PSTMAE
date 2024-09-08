@@ -240,6 +240,7 @@ class KANLinear(torch.nn.Module):
         )
 
 
+# reference: [efficient KAN](https://github.com/Blealtan/efficient-kan)
 class KAN(torch.nn.Module):
     def __init__(
         self,
