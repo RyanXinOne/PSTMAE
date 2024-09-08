@@ -269,12 +269,13 @@ if __name__ == '__main__':
     # dataset = DiffusionReactionDataset()
     # dataset = CompressibleNavierStokesDataset()
     # dataset = NOAASeaSurfaceTemperatureDataset()
+
     print(len(dataset))
     x, y, mask = dataset[0]
     print(x.shape, y.shape)
     print(mask)
 
-    from data.utils import interpolate_sequence, visualise_sequence
-    visualise_sequence(x, save_path='sequence.png')
-    x_int = interpolate_sequence(x, mask)
-    print((x - x_int).numpy().max(axis=(1, 2, 3)))
+    # from data.utils import interpolate_sequence, visualise_sequence
+    # visualise_sequence(x, save_path='sequence.png')
+    # x_int = interpolate_sequence(x, mask)
+    # print((x - x_int).numpy().max(axis=(1, 2, 3)))
