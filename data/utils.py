@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 import matplotlib.pyplot as plt
@@ -9,10 +10,14 @@ def generate_random_mask(seq_len, masking_steps):
 
     Args:
         seq_len: int, the length of the sequence.
-        masking_steps: int, the number of steps to mask.
+        masking_steps: int or list, the number of steps to mask.
     '''
+    if isinstance(masking_steps, int):
+        masking_steps = [masking_steps]
+    steps = random.choice(masking_steps)
+
     mask = np.zeros(seq_len)
-    mask_idx = np.random.choice(seq_len, masking_steps, replace=False)
+    mask_idx = np.random.choice(seq_len, steps, replace=False)
     mask[mask_idx] = 1
     return mask
 
