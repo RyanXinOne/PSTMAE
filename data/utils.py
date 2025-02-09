@@ -2,6 +2,7 @@ import random
 import numpy as np
 from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
 
 def generate_random_mask(seq_len, masking_steps):
@@ -120,7 +121,7 @@ def interpolate_sequence(data, mask):
 
 def calculate_ssim_series(input_sequence, predicted_sequence):
     '''
-    Calculate the mean SSIM value for a sequence of images.
+    Calculate the mean and std SSIM value for a sequence of images.
 
     Args:
     - input_sequence (torch.Tensor of shape (b, l, c, h, w)): The input sequence.
@@ -132,12 +133,12 @@ def calculate_ssim_series(input_sequence, predicted_sequence):
         for l in range(input_sequence.shape[1]):
             ssim_value = structural_similarity(input_sequence[b, l], predicted_sequence[b, l], data_range=1, channel_axis=0)
             ssim_values.append(ssim_value)
-    return np.mean(ssim_values)
+    return np.mean(ssim_values), np.std(ssim_values)
 
 
 def calculate_psnr_series(input_sequence, predicted_sequence):
     '''
-    Calculate the mean PSNR value for a sequence of images.
+    Calculate the mean and std PSNR value for a sequence of images.
 
     Args:
     - input_sequence (torch.Tensor of shape (b, l, c, h, w)): The input sequence.
@@ -149,4 +150,20 @@ def calculate_psnr_series(input_sequence, predicted_sequence):
         for l in range(input_sequence.shape[1]):
             psnr_value = peak_signal_noise_ratio(input_sequence[b, l], predicted_sequence[b, l], data_range=1)
             psnr_values.append(psnr_value)
-    return np.mean(psnr_values)
+    return np.mean(psnr_values), np.std(psnr_values)
+
+
+def calculate_image_level_mse_std(input_sequence, predicted_sequence):
+    '''
+    Calculate the mean and std MSE value for a sequence of images.
+
+    Args:
+    - input_sequence (torch.Tensor of shape (b, l, c, h, w)): The input sequence.
+    - predicted_sequence (torch.Tensor of shape (b, l, c, h, w)): The predicted sequence.
+    '''
+    mse_values = []
+    for b in range(input_sequence.shape[0]):
+        for l in range(input_sequence.shape[1]):
+            mse_value = F.mse_loss(predicted_sequence[b, l], input_sequence[b, l])
+            mse_values.append(mse_value.cpu().numpy())
+    return np.mean(mse_values), np.std(mse_values)
