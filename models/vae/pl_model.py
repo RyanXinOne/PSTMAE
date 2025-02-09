@@ -4,7 +4,7 @@ from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.vae import SeqConvVariationalAutoEncoder
-from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.utils import visualise_sequence, calculate_ssim_series, calculate_psnr_series, calculate_image_level_mse_std
 
 
 class LitVariationalAutoEncoder(pl.LightningModule):
@@ -48,13 +48,18 @@ class LitVariationalAutoEncoder(pl.LightningModule):
         with torch.no_grad():
             pred, mu, logvar = self.model(data)
             loss, recons_loss, kld_loss = self.compute_loss(data, pred, mu, logvar)
-            ssim_value = calculate_ssim_series(data, pred)
-            psnr_value = calculate_psnr_series(data, pred)
+            mse_value, mse_std = calculate_image_level_mse_std(data, pred)
+            ssim_value, ssim_std = calculate_ssim_series(data, pred)
+            psnr_value, psnr_std = calculate_psnr_series(data, pred)
         self.log('test/loss', loss)
         self.log('test/mse', recons_loss)
         self.log('test/kld_loss', kld_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
+
+        self.log('test/mse_std', mse_std)
+        self.log('test/ssim_std', ssim_std)
+        self.log('test/psnr_std', psnr_std)
         return loss
 
     def predict_step(self, batch, batch_idx):
