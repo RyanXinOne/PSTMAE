@@ -4,7 +4,7 @@ from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.tikan import TiKAN
-from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series, calculate_image_level_mse_std
 
 
 class LitTiKAN(pl.LightningModule):
@@ -80,14 +80,19 @@ class LitTiKAN(pl.LightningModule):
         with torch.no_grad():
             pred, z_pred = self.model(x_int)
             loss, full_state_loss, latent_loss = self.compute_loss(data, pred, z1, z_pred)
-            ssim_value = calculate_ssim_series(data, pred)
-            psnr_value = calculate_psnr_series(data, pred)
+            mse_value, mse_std = calculate_image_level_mse_std(data, pred)
+            ssim_value, ssim_std = calculate_ssim_series(data, pred)
+            psnr_value, psnr_std = calculate_psnr_series(data, pred)
 
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
         self.log('test/latent_mse', latent_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
+
+        self.log('test/mse_std', mse_std)
+        self.log('test/ssim_std', ssim_std)
+        self.log('test/psnr_std', psnr_std)
         return loss
 
     def predict_step(self, batch, batch_idx):

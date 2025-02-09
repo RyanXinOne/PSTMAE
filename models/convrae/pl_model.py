@@ -4,7 +4,7 @@ from torch import optim
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from models.convrae import ConvRAE
-from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series
+from data.utils import interpolate_sequence, visualise_sequence, calculate_ssim_series, calculate_psnr_series, calculate_image_level_mse_std
 from data.dataset import ShallowWaterDataset as sw
 
 
@@ -91,8 +91,9 @@ class LitConvRAE(pl.LightningModule):
         with torch.no_grad():
             pred, z2 = self.model.predict(x_int, self.forecast_steps)
             loss, full_state_loss, latent_loss, energy_loss = self.compute_loss(data, pred, z1, z2)
-            ssim_value = calculate_ssim_series(data, pred)
-            psnr_value = calculate_psnr_series(data, pred)
+            mse_value, mse_std = calculate_image_level_mse_std(data, pred)
+            ssim_value, ssim_std = calculate_ssim_series(data, pred)
+            psnr_value, psnr_std = calculate_psnr_series(data, pred)
 
         self.log('test/loss', loss)
         self.log('test/mse', full_state_loss)
@@ -101,6 +102,10 @@ class LitConvRAE(pl.LightningModule):
             self.log('test/energy_mse', energy_loss)
         self.log('test/ssim', ssim_value)
         self.log('test/psnr', psnr_value)
+
+        self.log('test/mse_std', mse_std)
+        self.log('test/ssim_std', ssim_std)
+        self.log('test/psnr_std', psnr_std)
         return loss
 
     def predict_step(self, batch, batch_idx):
